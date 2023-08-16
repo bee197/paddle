@@ -79,7 +79,6 @@ def evaluate(env, agent):
 
             obs = next_obs
             total_reward += reward
-            # TODO:
             # print("reward : ", reward)
 
             if done:

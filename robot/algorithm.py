@@ -50,7 +50,6 @@ class DDPG(parl.Algorithm):
         # Compute actor loss and Update the frozen target models
         actor_loss = -self.model.value(obs, self.model.policy(obs)).mean()
 
-        # TODO:
         # print("actor_loss : ", actor_loss)
 
         # Optimize the actor
