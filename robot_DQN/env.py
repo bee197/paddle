@@ -72,8 +72,7 @@ class RobotEnv(gym.Env):
         p.resetSimulation(physicsClientId=self._physics_client_id)
         # 初始化重力
         p.setGravity(0, 0, -9.8)
-        # TODO:初始化足球,用小鸭改,得找模型
-        # 初始化小鸭
+        # 初始化障碍物
         self.__create_coll(self.seed())
         # 初始化机器人
         self.robot = p.loadURDF("./miniBox.urdf", basePosition=BASE_POS, physicsClientId=self._physics_client_id)
