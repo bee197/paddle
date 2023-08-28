@@ -54,11 +54,14 @@ class DQN(parl.Algorithm):
         loss = self.mse_loss(Q, target_Q)
         # print("loss : ", loss)
 
-
         # 优化器
         self.optimizer.clear_grad()
         loss.backward()
         self.optimizer.step()
+
+        # 学习率衰减
+        self.lr *= 0.99
+        self.lr = max(self.lr, 0.0001)
 
         return loss
 

@@ -22,8 +22,9 @@ if os.path.exists(PATH):
     agent.restore(PATH)
 eval_reward, coll_num = evaluate(env, agent)
 print("coll_num : ", coll_num)
-# it = 1200
-# while it <= 9650:
+
+# it = 100
+# while it <= 3100:
 #     if os.path.exists(PATH):
 #         agent.restore(PATH)
 #         eval_reward, coll_num = evaluate(env, agent)

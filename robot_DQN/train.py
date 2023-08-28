@@ -1,5 +1,6 @@
 import os
 
+import parl
 from parl.utils import logger, summary
 
 from robot_DQN.agent import Agent
@@ -9,7 +10,7 @@ from robot_DQN.model import Model
 from robot_DQN.repaly_memory import ReplayMemory
 from robot_DQN.run import run_episode, evaluate
 
-LR = 1e-4  # learning rate
+LR = 0.001  # learning rate
 GAMMA = 0.99  # reward 的衰减因子
 
 MEMORY_SIZE = int(50000)  # 经验池大小
@@ -22,7 +23,7 @@ env = RobotEnv()
 # 使用PARL框架创建agent
 model = Model()
 algorithm = DQN(model, gamma=GAMMA, lr=LR)
-agent = Agent(algorithm, act_dim=3, e_greed=0.1, e_greed_decrement=1e-6)
+agent = Agent(algorithm, act_dim=3, e_greed=0.5, e_greed_decrement=1e-6)
 
 # 创建经验池
 rpm = ReplayMemory(MEMORY_SIZE)
@@ -39,13 +40,19 @@ while rpm.__len__() < MEMORY_WARMUP_SIZE:
 if os.path.exists('./model.ckpt'):
     agent.restore('./model.ckpt')
 episode = 0
+coll_times = 0
 while episode < TRAIN_EPISODE:
     is_coll = 0
     for i in range(50):
         avg_reward, coll = run_episode(agent, env, rpm)
         if coll:
             is_coll += 1
-        print("avg-----------", episode, "----------reward : ", avg_reward)
+            coll_times += 1
+        else:
+            coll_times = 0
+        save_path_2 = './model' + str(episode) + '.ckpt'
+        if coll_times >= 5:
+            agent.save(save_path_2)
         summary.add_scalar("avg_reward", avg_reward, global_step=episode)
         episode += 1
 
@@ -58,6 +65,7 @@ while episode < TRAIN_EPISODE:
     summary.add_scalar("eva_coll_num", coll_num, global_step=episode)
 
     # 保存模型
+    agent.save("./model.ckpt")
     save_path = './model' + str(episode) + '.ckpt'
-    if coll_num == 10 or (is_coll >= 45 and coll_num == 9):
+    if coll_num >= 7:
         agent.save(save_path)

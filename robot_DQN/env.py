@@ -5,17 +5,19 @@ from random import randint
 import cv2
 import gym
 import numpy as np
+import paddle
 import pybullet_data
 from gym import spaces
 import pybullet as p
 
-STACK_SIZE = 4
+STACK_SIZE = 3
 STEP_MAX = 300
 BASE_RADIUS = 0.5
 BASE_THICKNESS = 0.2
 TIME_STEP = 0.02
 BASE_POS = [0., 0., 0.2]
 LOCATION = [0., 0., 0.2]
+NOISE = 0.5
 
 
 class RobotEnv(gym.Env):
@@ -25,11 +27,21 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __init__(self, render: bool = False):
+        self.hit_num = None
+        self.angle_prev2 = None
+        self.distance_prev2 = None
+        self.angle_prev = None
+        self.distance_prev = None
+        self.h_fov = None
+        self.coord2 = None
+        self.coord1 = None
+        self.soccer = None
+        self.collision = None
         self.plane = None
         self.robot = None
         self._render = render
         self.stacked_frames = collections.deque([np.zeros((84, 84), dtype=np.float32) for i in range(STACK_SIZE)],
-                                                maxlen=4)
+                                                maxlen=3)
 
         # 定义动作空间
         self.action_space = spaces.Discrete(3)
@@ -59,31 +71,69 @@ class RobotEnv(gym.Env):
     def reset(self):
         # 在机器人位置设置相机
         p.resetDebugVisualizerCamera(
-            cameraDistance=5,  # 与相机距离
+            cameraDistance=8,  # 与相机距离
             cameraYaw=-90,  # 左右视角
-            cameraPitch=-30,  # 上下视角
+            cameraPitch=-89,  # 上下视角
             cameraTargetPosition=LOCATION  # 位置
         )
         # 初始化计数器
         self.step_num = 0
+        self.hit_num = 0
         # 设置一步的时间,默认是1/240
         p.setTimeStep(TIME_STEP)
         # 初始化模拟器
         p.resetSimulation(physicsClientId=self._physics_client_id)
         # 初始化重力
         p.setGravity(0, 0, -9.8)
-        # 初始化障碍物
-        self.__create_coll(self.seed())
+        # 初始化随机坐标
+        seed1, seed2 = self.seed()
+        # 初始化障碍物1 TODO:
+        self.soccer = self.__create_coll(seed1, obj="soccerball.obj", is_current_folder=False, scale=[0.7, 0.7, 0.7])
+        # 初始化障碍物2
+        self.collision = self.__create_coll(seed2, obj="Bottle.obj", is_current_folder=True,
+                                            scale=[0.005, 0.005, 0.005])
         # 初始化机器人
         self.robot = p.loadURDF("./miniBox.urdf", basePosition=BASE_POS, physicsClientId=self._physics_client_id)
         # 设置文件路径
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         # 初始化地板
         self.plane = p.loadURDF("plane.urdf", physicsClientId=self._physics_client_id)
+        p.changeVisualShape(self.plane, -1, rgbaColor=[0, 1, 0, 1])
+        # 初始化白线
+        # whiteColor = [1, 1, 1, 1]
+        # lineWidth = 0.2
+        # lineLength = 100
+        # visualShapeId = p.createVisualShape(shapeType=p.GEOM_BOX,
+        #                                     halfExtents=[lineLength / 2, lineWidth / 2, 0.01],
+        #                                     rgbaColor=whiteColor)
+        # lineId = p.createMultiBody(baseVisualShapeIndex=visualShapeId)
+        # p.resetBasePositionAndOrientation(lineId, [0, 0, 0.01], [0, 0, 0, 1])
+
+        # 获得视野
+        fov = 50.0
+        aspect = 1.0
+        fov_rad = math.radians(fov)
+        self.h_fov = math.atan(math.tan(fov_rad / 2) * aspect) * 2
+        # 上一步的距离
+        self.distance_prev, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance(self.soccer)
+        self.distance_prev2, distance_ori, distance_coll, robot_pos, coll_pos2, robot_ori2, coll_ori = self.__get_distance(
+            self.soccer)
+        robot_angle = math.atan2(robot_ori[0], robot_ori[1])
+        coll_angle = math.atan2(coll_pos[0], coll_pos[1])
+        robot_angle2 = math.atan2(robot_ori2[0], robot_ori2[1])
+        coll_angle2 = math.atan2(coll_pos2[0], coll_pos2[1])
+
+        self.angle_prev = np.abs(coll_angle - robot_angle)
+        self.angle_prev2 = np.abs(coll_angle2 - robot_angle2)
+
         # 获得图片
-        pic = self.__get_observation()
-        # 堆栈图片
-        obs, self.stacked_frames = self.__stack_pic(pic, self.stacked_frames, True)
+        obs = self.__get_observation()
+
+        distance = paddle.to_tensor([self.distance_prev, self.distance_prev2])
+        angle = paddle.to_tensor([self.angle_prev, self.angle_prev2])
+        obs = paddle.to_tensor(obs, dtype='float32')
+
+        obs = [(obs, distance, angle)]
 
         return obs
 
@@ -97,70 +147,120 @@ class RobotEnv(gym.Env):
         self.__apply_action(action)
         # 步进
         p.stepSimulation(physicsClientId=self._physics_client_id)
-        # 获得距离
-        distance, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance()
-        # 获得angle
-        robot_angle = math.atan2(robot_ori[0], robot_ori[1]) / 3.14
-        coll_angle = math.atan2(coll_pos[0], coll_pos[1]) / 3.14
 
+        # 获得距离 TODO:
+        distance, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance(
+            self.soccer)
+        distance2, distance_ori2, distance_coll2, robot_pos2, coll_pos2, robot_ori2, coll_ori2 = self.__get_distance(
+            self.collision)
+
+        # 获得angle TODO:
+        # 障碍物与机器人向量
+        coll_robot = np.array(coll_pos) - np.array(robot_pos)
+        robot_angle = math.atan2(robot_ori[0], robot_ori[1])
+        coll_angle = math.atan2(coll_robot[0], coll_robot[1])
+
+        coll_robot2 = np.array(coll_pos2) - np.array(robot_pos2)
+        robot_angle2 = math.atan2(robot_ori2[0], robot_ori2[1])
+        coll_angle2 = math.atan2(coll_robot2[0], coll_robot2[1])
+
+        # TODO:
         angle = np.abs(coll_angle - robot_angle)
-        # print("angle : ", angle)
+        angle2 = np.abs(coll_angle2 - robot_angle2)
 
-        # 获得图片
-        pic = self.__get_observation()
+        # 设置奖励:足球 TODO:
+        # TODO:改进人工势场算法 Uatt = 0.5 * ξ * ||qgoal - q||^2
+        video_in = angle < self.h_fov / 2
+        video_in2 = angle2 < self.h_fov / 2
 
-        # 设置奖励:
-        if distance <= distance_coll:
-            reward = 1 - distance / distance_coll
-        else:
-            reward = 0
+        # 沿着白线有奖励
+        reward_line = 0
+        # if -0.2 < robot_pos[1] < 0.2:
+        #     reward_line += 0.5
 
-        if angle < 0.15:
-            reward += (0.15 - angle) * 10
-        else:
-            # punish
-            reward += (0.15 - angle) * 10
+        # 沿着足球有奖励
+        reward_goal = 0
+        if video_in:
+            reward_goal += 1 / (distance + 1)
+        # if video_in and distance <= 8:
+        #     reward_goal += 1
+        # if angle2 < 0.5:
+        #     close_angle = self.angle_prev - angle
+        #     close_dis = self.distance_prev - distance
+        #     reward_goal += 10 * close_angle + 5 * close_dis
 
-        # print("reward : ", reward)
+        # 障碍物
+        reward_coll = 0
+        # if video_in2:
+        #     reward_coll -= 0.25
+        # if angle2 < 0.5:
+        #     close_angle2 = self.angle_prev2 - angle2
+        #     close_dis2 = self.distance_prev2 - distance2
+        #     reward_coll -= 10 * close_angle2 + 5 * close_dis2
+
+        # 奖励
+        reward = reward_line + reward_goal + reward_coll
+        # print(f"reward:{reward}")
         info = False
-
         # 只有距离小于2时才判断是否相撞,减少运算
-        # 距离大于2,肯定没相撞
+        # 距离大于2,肯定没相撞 TODO:
         if distance > 2:
             done = False
         # 距离小于2,且相撞
-        elif self.__is_collision():
+        elif self.__is_collision(self.soccer):
+            print(f"!!!足球!!!")
             reward += 10
             info = True
             done = True
         # 距离小于2,又没有相撞
         else:
             done = False
+
+        # 与障碍物相撞
+        if self.__is_collision(self.collision):
+            reward -= 10
+            self.hit_num += 1
+            if self.hit_num >= 20:
+                done = True
+                print(f"!")
         # 步数超过限制
         if self.step_num > STEP_MAX:
-            # print("action : ", action)
+            print("-")
             done = True
 
-        # 堆栈图片
-        obs, self.stacked_frames = self.__stack_pic(pic, self.stacked_frames, done)
+        # TODO:上一次的距离角度
+        self.distance_prev = distance
+        self.angle_prev = angle
+        self.distance_prev2 = distance2
+        self.angle_prev2 = angle2
+
+        # 获得图片
+        obs = self.__get_observation()
+
+        distance = paddle.to_tensor([self.distance_prev, self.distance_prev2])
+        angle = paddle.to_tensor([self.angle_prev, self.angle_prev2])
+        obs = paddle.to_tensor(obs, dtype='float32')
+
+        obs = [(obs, distance, angle)]
 
         return obs, reward, done, info
 
     def seed(self):
         # 随机足球的坐标
-        x = np.random.uniform(4, 8)
-        y = np.random.uniform(-2, 2)
-        # y1 = np.random.uniform(1, 2)
-        # y2 = np.random.uniform(-2, -1)
-        # rand_int = randint(1, 2)  # 指定范围内随机整数
-        # if rand_int % 2 == 0:
-        #     y = y1
-        # else:
-        #     y = y2
+        x1 = np.random.uniform(6, 7)
+        # x1 = 6
+        # y1 = np.random.uniform(-2, 2)
+        y1 = np.random.choice([-2, 2], size=1)
+        # x2 = np.random.uniform(3, 4)
+        x2 = 4
+        # y2 = np.random.uniform(-1, 1)
+        y2 = 0
+        # y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
 
-        coord = [x, y, 0.6]
+        self.coord1 = [x1, y1, 0.4]
+        self.coord2 = [x2, y2, 0.]
 
-        return coord
+        return self.coord1, self.coord2
 
     def render(self, mode='human'):
         pass
@@ -204,6 +304,14 @@ class RobotEnv(gym.Env):
         w, h, rgbPixels, depthPixels, segPixels = self.__setCameraPicAndGetPic(self.robot)
         # 灰度化,归一化
         obs = self.__norm(rgbPixels)
+
+        stacked_frames = collections.deque([np.zeros((84, 84), dtype=np.float32) for i in range(STACK_SIZE)],
+                                           maxlen=3)
+        stacked_frames.append(obs)
+        stacked_frames.append(depthPixels)
+        stacked_frames.append(segPixels)
+
+        obs = np.stack(stacked_frames, axis=0)
         return obs
 
     # ---------------------------------------------------------#
@@ -215,10 +323,9 @@ class RobotEnv(gym.Env):
         if is_done:
             # Clear our stacked_frames
             stacked_frames = collections.deque([np.zeros((84, 84), dtype=np.float32) for i in range(STACK_SIZE)],
-                                               maxlen=4)
+                                               maxlen=3)
 
             # Because we're in a new episode, copy the same frame 4x
-            stacked_frames.append(pic)
             stacked_frames.append(pic)
             stacked_frames.append(pic)
             stacked_frames.append(pic)
@@ -239,13 +346,20 @@ class RobotEnv(gym.Env):
     #   获得距离
     # ---------------------------------------------------------#
 
-    def __get_distance(self):
+    def __get_distance(self, id, bias=[0, 0]):
         if not hasattr(self, "robot"):
             assert Exception("robot hasn't been loaded in!")
         # 获得机器人位置
         basePos, baseOri = p.getBasePositionAndOrientation(self.robot, physicsClientId=self._physics_client_id)
         # 碰撞物位置
-        collPos, collOri = p.getBasePositionAndOrientation(self.collision, physicsClientId=self._physics_client_id)
+        collPos, collOri = p.getBasePositionAndOrientation(id, physicsClientId=self._physics_client_id)
+
+        # 添加y轴偏移,tuple不能改变元素,换list
+        collList = list(collPos)
+        collList[0] += bias[0]
+        collList[1] += bias[1]
+        collPos = tuple(collList)
+
         dis = np.array(collPos) - np.array(basePos)
         dis_Ori = np.array(basePos) - np.array(BASE_POS)
         dis_coll = np.array(collPos) - np.array(BASE_POS)
@@ -267,16 +381,16 @@ class RobotEnv(gym.Env):
     #   是否碰撞
     # ---------------------------------------------------------#
 
-    def __is_collision(self):
+    def __is_collision(self, id):
         P_min, P_max = p.getAABB(self.robot)
         id_tuple = p.getOverlappingObjects(P_min, P_max)
         if len(id_tuple) > 1:
             for ID, _ in id_tuple:
-                if ID == self.robot:
-                    continue
-                else:
-                    print(f"hit happen! hit object is {p.getBodyInfo(ID)}")
+                if ID == id:
                     return True
+                else:
+                    continue
+
         return False
 
     # ---------------------------------------------------------#
@@ -328,19 +442,19 @@ class RobotEnv(gym.Env):
         return width, height, rgbImg, depthImg, segImg
 
     # ---------------------------------------------------------#
-    #   创造鸭子
+    #   创造足球
     # ---------------------------------------------------------#
 
-    def __create_coll(self, coord):
+    def __create_coll(self, coord, obj, is_current_folder, scale):
         # 创建视觉模型和碰撞箱模型时共用的两个参数
         shift = [0, 0, 0]
-        scale = [0.7, 0.7, 0.7]
-        # 添加资源路径
-        p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        if not is_current_folder:
+            # 添加资源路径
+            p.setAdditionalSearchPath(pybullet_data.getDataPath())
         # 创建视觉形状
         visual_shape_id = p.createVisualShape(
             shapeType=p.GEOM_MESH,
-            fileName="soccerball.obj",
+            fileName=obj,
             rgbaColor=[1, 1, 1, 1],
             specularColor=[0.4, 0.4, 0],
             visualFramePosition=shift,
@@ -350,13 +464,10 @@ class RobotEnv(gym.Env):
         # 创建碰撞箱模型
         collision_shape_id = p.createCollisionShape(
             shapeType=p.GEOM_MESH,
-            fileName="soccerball.obj",
+            fileName=obj,
             collisionFramePosition=shift,
             meshScale=scale
         )
-
-        # 碰撞id
-        self.collision = collision_shape_id
 
         # 使用创建的视觉形状和碰撞箱形状使用createMultiBody将两者结合在一起
         p.createMultiBody(
@@ -364,8 +475,12 @@ class RobotEnv(gym.Env):
             baseCollisionShapeIndex=collision_shape_id,
             baseVisualShapeIndex=visual_shape_id,
             basePosition=coord,
+            baseOrientation=p.getQuaternionFromEuler([3.14/2, 0, 0]),
             useMaximalCoordinates=True
         )
+
+        # 碰撞id
+        return collision_shape_id
 
     # ---------------------------------------------------------#
     #   归一化

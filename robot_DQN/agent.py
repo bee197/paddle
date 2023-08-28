@@ -26,14 +26,14 @@ class Agent(parl.Agent):
         # 选择最优动作
         else:
             act = self.predict(obs)
-        self.e_greed = max(0.01, self.e_greed - self.e_greed_decrement)  # 随着训练逐步收敛，探索的程度慢慢降低
+        self.e_greed = max(0.1, self.e_greed - self.e_greed_decrement)  # 随着训练逐步收敛，探索的程度慢慢降低
         return act
 
     def predict(self, obs):
         # # 图像是[128,4,84,84],即一次128批次,4帧,像素84*84
         # cv2.imshow("obs", obs[0][0].numpy())
         # cv2.waitKey(1)
-        obs = paddle.to_tensor(obs, dtype='float32')
+        # obs = paddle.to_tensor(obs, dtype='float32')
         Q = self.alg.predict(obs)
         # print("Q : ", Q[0])
         act = int(Q.argmax())
@@ -47,10 +47,8 @@ class Agent(parl.Agent):
             self.alg.sync_target()
         self.global_step += 1
 
-        obs = paddle.to_tensor(obs, dtype='float32')
         act = paddle.to_tensor(act, dtype='float32')
         reward = paddle.to_tensor(reward, dtype='float32')
-        next_obs = paddle.to_tensor(next_obs, dtype='float32')
         done = paddle.to_tensor(done, dtype='float32')
 
         # print("obs : %r" % obs)

@@ -14,7 +14,14 @@ def run_episode(agent, env, rpm):
     steps = 0
     while True:
         steps += 1
-        obs = np.expand_dims(obs, axis=0)
+        # 升维 [3,84,84] ->[1,3,84,84]
+        obs, distance, angle = obs[0]
+        obs = obs.unsqueeze(0)
+        # print(obs.shape)
+        distance = distance.unsqueeze(0)
+        angle = angle.unsqueeze(0)
+        obs = [(obs, distance, angle)]
+
         action = agent.sample(obs)
         next_obs, reward, done, info = env.step(action)
 
@@ -43,16 +50,20 @@ def run_episode(agent, env, rpm):
 def evaluate(env, agent):
     eval_reward = []
     coll_num = 0
-    for i in range(1000):
+    for i in range(10):
         obs = env.reset()
         total_reward = 0
         steps = 0
         while True:
             steps += 1
-            batch_obs = paddle.to_tensor(obs)  # shape=(1, 4, 84, 84)
-            batch_obs = batch_obs.expand([128, -1, -1, -1])  # 重复BATCH_SIZE
-            # batch_obs = np.expand_dims(obs, axis=0)
-            action = agent.predict(batch_obs)
+            # 升维 [4,84,84] ->[1,4,84,84]
+            obs, distance, angle = obs[0]
+            obs = obs.unsqueeze(0)
+            distance = distance.unsqueeze(0)
+            angle = angle.unsqueeze(0)
+            obs = [(obs, distance, angle)]
+
+            action = agent.predict(obs)
             # print('action: ', action)
             next_obs, reward, done, info = env.step(action)
 
