@@ -1,0 +1,21 @@
+[09-01 11:50:17 MainThread @tensorboard.py:34] WRN [tensorboard] logdir is None, will save tensorboard files to train_log\train
+View the data using: tensorboard --logdir=train_log\train --host=192.168.56.1
+[09-01 11:53:31 MainThread @train.py:63] episode:50    test_reward:-1.2883592438572091    coll_num:0    e_greed:0.48766600000033
+[09-01 11:56:58 MainThread @train.py:63] episode:100    test_reward:-0.9855869930474368    coll_num:0    e_greed:0.48020400000052965
+[09-01 12:10:04 MainThread @train.py:63] episode:150    test_reward:-0.6663432581503873    coll_num:2    e_greed:0.47273700000072943
+[09-01 12:27:32 MainThread @train.py:63] episode:200    test_reward:-1.5596912158642453    coll_num:0    e_greed:0.46487200000093987
+[09-01 12:44:58 MainThread @train.py:63] episode:250    test_reward:-1.4062894443882092    coll_num:0    e_greed:0.4572080000011449
+[09-01 13:00:20 MainThread @train.py:63] episode:300    test_reward:-1.6618324679656535    coll_num:0    e_greed:0.4504820000013249
+[09-01 13:13:41 MainThread @train.py:63] episode:350    test_reward:-1.7151358942926151    coll_num:0    e_greed:0.44422700000149223
+[09-01 13:20:45 MainThread @train.py:63] episode:400    test_reward:-1.6789681872395104    coll_num:0    e_greed:0.43813500000165523
+[09-01 13:27:47 MainThread @train.py:63] episode:450    test_reward:-1.7017291312289722    coll_num:0    e_greed:0.4319920000018196
+[09-01 13:35:49 MainThread @train.py:63] episode:500    test_reward:-1.7046748606588171    coll_num:0    e_greed:0.4259880000019802
+[09-01 13:48:19 MainThread @train.py:63] episode:550    test_reward:-1.5878035170862552    coll_num:0    e_greed:0.4199110000021428
+[09-01 14:01:50 MainThread @train.py:63] episode:600    test_reward:-1.7094969219959808    coll_num:0    e_greed:0.4138710000023044
+[09-01 14:14:38 MainThread @train.py:63] episode:650    test_reward:-1.6967017932360942    coll_num:0    e_greed:0.4078890000024645
+[09-01 14:26:08 MainThread @train.py:63] episode:700    test_reward:-1.682888058973178    coll_num:0    e_greed:0.40191000000262445
+[09-01 14:39:37 MainThread @train.py:63] episode:750    test_reward:-1.695200839371251    coll_num:0    e_greed:0.3958940000027854
+[09-01 14:48:37 MainThread @train.py:63] episode:800    test_reward:-1.6930976080929234    coll_num:0    e_greed:0.38988600000294615
+[09-01 14:55:39 MainThread @train.py:63] episode:850    test_reward:-1.68126371766371    coll_num:0    e_greed:0.38391400000310594
+[09-01 15:02:34 MainThread @train.py:63] episode:900    test_reward:-1.6644608243624817    coll_num:0    e_greed:0.3779280000032661
+[09-01 15:10:55 MainThread @train.py:63] episode:950    test_reward:-1.5774299262414837    coll_num:0    e_greed:0.3719400000034263
