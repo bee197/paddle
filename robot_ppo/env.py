@@ -5,11 +5,11 @@ import cv2
 import gym
 import numpy as np
 import pybullet_data
-from gymnasium import spaces
+from gym import spaces
 import pybullet as p
 
 STACK_SIZE = 3
-STEP_MAX = 300
+STEP_MAX = 600
 BASE_RADIUS = 0.5
 BASE_THICKNESS = 0.2
 TIME_STEP = 0.02
@@ -94,11 +94,12 @@ class RobotEnv(gym.Env):
         pic = self.__get_observation()
         # 堆栈图片
         obs, self.stacked_frames = self.__stack_pic(pic, self.stacked_frames, True)
+
         # TODO:
         # 上一步的距离
         self.distance_prev, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance(
             self.soccer)
-        distance2, distance_ori2, distance_coll2, robot_pos2, coll_pos2, robot_ori2, coll_ori2 = self.__get_distance(
+        self.distance_prev2, distance_ori2, distance_coll2, robot_pos2, coll_pos2, robot_ori2, coll_ori2 = self.__get_distance(
             self.collision)
         # 障碍物与机器人向量
         coll_robot = np.array(coll_pos) - np.array(robot_pos)
@@ -108,12 +109,13 @@ class RobotEnv(gym.Env):
         coll_robot2 = np.array(coll_pos2) - np.array(robot_pos2)
         robot_angle2 = math.atan2(robot_ori2[0], robot_ori2[1])
         coll_angle2 = math.atan2(coll_robot2[0], coll_robot2[1])
-
-        self.angle_prev = np.abs(coll_angle - robot_angle)
-        self.angle_prev2 = np.abs(coll_angle2 - robot_angle2)
-
-        info = 0
-        return obs, info
+                # # 角度
+        angle = np.abs(coll_angle - robot_angle)
+        # # print(angle)
+        angle2 = np.abs(coll_angle2 - robot_angle2)
+        self.distance_target_direct_prev = self.distance_prev * angle
+        self.distace_coll_direct_prev = self.distance_prev * angle2
+        return obs
 
     # ---------------------------------------------------------#
     #   step
@@ -142,7 +144,7 @@ class RobotEnv(gym.Env):
             self.soccer)
         distance2, distance_ori2, distance_coll2, robot_pos2, coll_pos2, robot_ori2, coll_ori2 = self.__get_distance(
             self.collision)
-        # 障碍物与机器人向量
+        # # 障碍物与机器人向量
         coll_robot = np.array(coll_pos) - np.array(robot_pos)
         robot_angle = math.atan2(robot_ori[0], robot_ori[1])
         coll_angle = math.atan2(coll_robot[0], coll_robot[1])
@@ -152,62 +154,36 @@ class RobotEnv(gym.Env):
         coll_angle2 = math.atan2(coll_robot2[0], coll_robot2[1])
 
         h_fov = self.get_view_range()
-        # 角度
+        # # 角度
         angle = np.abs(coll_angle - robot_angle)
+        # # print(angle)
         angle2 = np.abs(coll_angle2 - robot_angle2)
-
+        #方向距离
+        distance_target_direct = distance * angle
+        distace_coll_direct = distance2 * angle2
         # 获得图片
         pic = self.__get_observation()
         # 设置奖励 TODO:
         reward = 0
-        video_in = angle < h_fov / 2
-        if video_in:
-            close = self.angle_prev - angle
-            if angle > 0.24:
-                # 角度靠近
-                if close > 0:
-                    reward += (1 / (distance + 1)) * (1 - angle / (h_fov / 2))
-                # 角度偏移
+        target_in = angle <(h_fov / 2+0.24)
+        ##先摆脱障碍物
+        if distace_coll_direct > 1:
+            if angle > 0.34:
+                if self.distance_prev-distance > 0 and self.angle_prev-angle >0:
+                    reward += (1/(distance_target_direct/2+1)+1)*(1/(distance+1)+1)*(1 - angle/(h_fov/2))
                 else:
-                    reward += -(1 / (distance + 1) + 1) * (1 - angle / (h_fov / 2))
+                    reward +=-(1/(distance_target_direct/2+1)+1)*(1/(distance+1)+1)*(1 + angle)
             else:
-                # 距离靠近
-                if self.distance_prev - distance > 0:
-                    reward += 1 / (distance + 1)
-                # 距离偏移
+                if self.distance_prev-distance > 0:
+                    reward += (1/(distance_target_direct/2+1))*(1/(distance+1)+1)
                 else:
-                    reward += -(1 / (distance + 1) + 1)
-        # 障碍物
-        video_in2 = angle2 < h_fov / 2
-        if video_in2:
-            close = self.angle_prev2 - angle2
-            if angle2 > 0.24:
-                # 角度靠近
-                if close > 0:
-                    reward -= (1 / (distance2 + 1)) * (1 - angle2 / (h_fov / 2))
-                # 角度偏移
-                else:
-                    reward -= -(1 / (distance2 + 1) + 1) * (1 - angle2 / (h_fov / 2))
+                    reward += -(1/(distance_target_direct/2+1)+2)*(1/(distance+1)+1)
+        else:
+            if self.distace_coll_direct_prev-distace_coll_direct>0:
+                reward += -(1/(distance_target_direct+1)+2)
             else:
-                # 距离靠近
-                if self.distance_prev2 - distance2 > 0:
-                    reward -= 1 / (distance2 + 1)
-                # 距离偏移
-                else:
-                    reward -= -(1 / (distance2 + 1) + 1)
-        # # 是否在视野
-        # video_in = angle < (h_fov / 2)
-        # video_in2 = angle2 < (h_fov / 2)
-        # # 奖励
-        # if video_in:
-        #     if self.angle_prev - angle >= 0:
-        #         reward += 1 - distance / distance_coll
-        #
-        # if video_in2:
-        #     if self.angle_prev2 - angle2 >= 0:
-        #         reward -= 1 - distance / distance_coll
-        # 只有距离小于2时才判断是否相撞,减少运算
-        # 距离大于2,肯定没相撞
+                reward += (1/(distance_target_direct+1)+1)
+        ##
         iscoll = False
         if distance > 2:
             done = False
@@ -215,32 +191,38 @@ class RobotEnv(gym.Env):
         elif self.__is_collision(self.soccer):
             # print("!!!相撞!!!")
             iscoll = True
-            reward += 10
+            reward += 6
             done = True
         # 距离小于2,又没有相撞
         else:
             done = False
         # 与障碍物相撞
         if self.__is_collision(self.collision):
-            # print("!")
-            reward = -10
+            # print("障碍物")
+            reward = -12
             done = True
         # 步数超过限制
-        if self.step_num > STEP_MAX:
-            # print("_")
+        if self.step_num > STEP_MAX or not target_in:
+            # print("_终止")
             done = True
+            reward = -12
         # 堆栈图片
         obs, self.stacked_frames = self.__stack_pic(pic, self.stacked_frames, done)
-        info = {"distance_coll": distance_coll, "distance": distance, "angle": angle, "reward": reward,
-                "h_fov": h_fov / 2, "iscoll": iscoll}
+        # # 图像是[128,4,84,84],即一次128批次,4帧,像素84*84
+        # print(obs.shape)
+        # cv2.imshow("obs", obs)
+        # cv2.waitKey(1)
+        info = {"distance_coll": distance_coll, "distance": distance, "distance_col":distance2,"angle_diff":np.abs(angle2-angle), "reward": reward,
+         "iscoll": iscoll,"target_angle":angle,"col_angle":angle2,"direct_coll":distace_coll_direct,"direct_target":distance_target_direct}
         # 更新 TODO:
         self.distance_prev = distance
         self.angle_prev = angle
         self.distance_prev2 = distance2
         self.angle_prev2 = angle2
+        self.distace_coll_direct_prev = distace_coll_direct
+        self.distance_target_direct_prev = distance_target_direct
         # print("reward : ", reward)
-        truncated = done
-        return obs, reward, done, truncated, info
+        return obs, reward, done, info
 
     def seed(self):
         # 随机足球的坐标
@@ -268,13 +250,15 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __apply_action(self, action):
-        left_v = 30.
-        right_v = 30.
+        left_v = 5.
+        right_v = 5.
         # print("action : ", action)
         if action == 0:
-            left_v = 15.
+            right_v =10
+            left_v = 2.
         elif action == 2:
-            right_v = 15.
+            left_v = 10
+            right_v = 2.
 
         # 设置速度
         p.setJointMotorControlArray(
@@ -312,7 +296,6 @@ class RobotEnv(gym.Env):
                                                maxlen=STACK_SIZE)
 
             # Because we're in a new episode, copy the same frame 4x
-            stacked_frames.append(pic)
             stacked_frames.append(pic)
             stacked_frames.append(pic)
             stacked_frames.append(pic)
@@ -362,17 +345,18 @@ class RobotEnv(gym.Env):
     #   是否碰撞
     # ---------------------------------------------------------#
 
-    def __is_collision(self, id):
-        P_min, P_max = p.getAABB(self.robot)
-        id_tuple = p.getOverlappingObjects(P_min, P_max)
-        if len(id_tuple) > 1:
-            for ID, _ in id_tuple:
-                if ID == id:
-                    return True
-                else:
-                    continue
+    def __is_collision(self, uid):
+        # P_min, P_max = p.getAABB(self.robot)
+        # id_tuple = p.getOverlappingObjects(P_min, P_max)
+        # if len(id_tuple) > 1:
+        #     for ID, _ in id_tuple:
+        #         if ID == uid:
+        #             return True
+        #         else:
+        #             continue
+        is_coll = bool(p.getContactPoints(bodyA=self.robot, bodyB=uid,physicsClientId=self._physics_client_id))
 
-        return False
+        return is_coll
 
     # ---------------------------------------------------------#
     #   合成相机
@@ -388,7 +372,6 @@ class RobotEnv(gym.Env):
         matrix = p.getMatrixFromQuaternion(baseOrientation, physicsClientId=physicsClientId)
         tx_vec = np.array([matrix[0], matrix[3], matrix[6]])  # 变换后的x轴
         tz_vec = np.array([matrix[2], matrix[5], matrix[8]])  # 变换后的z轴
-
         basePos = np.array(basePos)
         # 摄像头的位置
         # BASE_RADIUS 为 0.5，是机器人底盘的半径。BASE_THICKNESS 为 0.2 是机器人底盘的厚度。
@@ -478,45 +461,43 @@ class RobotEnv(gym.Env):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-
-    env = RobotEnv()
-
-
+    import time
+    env = RobotEnv(True)
     # 认识游戏环境
     def test_env():
-        # print('env.observation_space=', env.observation_space)
-        # print('env.action_space=', env.action_space)
-        rewards = 0
+        print('env.observation_space=', env.observation_space)
+        print('env.action_space=', env.action_space)
+        rewards = []
         state = env.reset()
-        for i in range(200):
+        for i in range(400):
             action = env.action_space.sample()
             next_state, reward, done, info = env.step(action)
-            rewards += reward
+            rewards.append(reward)
             info["action"] = action
             print(info)
             if done:
                 break
-        print(rewards)
+            # time.sleep(0.05)
+        plt.plot(rewards)
+        plt.show()
+        print(np.sum(rewards))
         # state = env.reset()
         # while True:
-        #     plt.subplot(2,2,1)
-        #     plt.imshow(state[0])
-        #     plt.title('Image 1')
-        #     plt.subplot(2,2,2)
-        #     plt.imshow(state[1])
-        #     plt.title('Image 2')
-        #     plt.subplot(2,2,3)
-        #     plt.imshow(state[2])
-        #     plt.title('Image 3')
-        #     plt.tight_layout()
-        #     plt.show()
+        #     # plt.subplot(2,2,1)
+        #     # plt.imshow(state[:,:,0])
+        #     # plt.title('Image 1')
+        #     # plt.subplot(2,2,2)
+        #     # plt.imshow(state[:,:,1])
+        #     # plt.title('Image 2')
+        #     # plt.subplot(2,2,3)
+        #     # plt.imshow(state[:,:,2])
+        #     # plt.title('Image 3')
+        #     # plt.tight_layout()
+        #     # plt.show()
         #     action = int(input())
         #     next_state, reward, done,info= env.step(action)
-
         #     print(info)
         #     if done:
         #         break
         #     state = next_state
-
-
     test_env()

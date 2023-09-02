@@ -22,7 +22,7 @@ class DQN(parl.Algorithm):
 
         self.mse_loss = paddle.nn.MSELoss(reduction='mean')
         self.optimizer = paddle.optimizer.Adam(
-            learning_rate=lr, parameters=self.model.get_params())
+            learning_rate=lr, parameters=self.model.get_params(), weight_decay=0.1)
 
     def predict(self, obs):
         # 升维
@@ -43,6 +43,7 @@ class DQN(parl.Algorithm):
         action_onehot = paddle.to_tensor(action_onehot.numpy()).astype(np.float32)
         # [128,3] * [128,3]
         Q = Q * action_onehot
+        # [128, 1]
         Q = paddle.sum(Q, axis=1, keepdim=True)
         # target Q
         with paddle.no_grad():
@@ -62,6 +63,7 @@ class DQN(parl.Algorithm):
         # 学习率衰减
         self.lr *= 0.99
         self.lr = max(self.lr, 0.0001)
+        self.optimizer.set_lr(self.lr)
 
         return loss
 

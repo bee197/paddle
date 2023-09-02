@@ -10,7 +10,7 @@ datapath = pybullet_data.getDataPath()
 p.setAdditionalSearchPath(datapath)
 
 # 加载模型
-robot_id = p.loadURDF("r2d2.urdf", [0, 0, 0.5])
+robot_id = p.loadURDF("miniBox.urdf", [0, 0, 0.5])
 
 # 输出基本信息
 joint_num = p.getNumJoints(robot_id)

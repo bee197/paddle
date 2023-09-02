@@ -9,7 +9,6 @@ from robot_DQN.env import RobotEnv
 from robot_DQN.model import Model
 from robot_DQN.repaly_memory import ReplayMemory
 from robot_DQN.run import run_episode, evaluate
-
 LR = 0.001  # learning rate
 GAMMA = 0.99  # reward 的衰减因子
 
@@ -23,7 +22,7 @@ env = RobotEnv()
 # 使用PARL框架创建agent
 model = Model()
 algorithm = DQN(model, gamma=GAMMA, lr=LR)
-agent = Agent(algorithm, act_dim=3, e_greed=0.5, e_greed_decrement=1e-6)
+agent = Agent(algorithm, act_dim=3, e_greed=0.1, e_greed_decrement=1e-6)
 
 # 创建经验池
 rpm = ReplayMemory(MEMORY_SIZE)
@@ -67,5 +66,5 @@ while episode < TRAIN_EPISODE:
     # 保存模型
     agent.save("./model.ckpt")
     save_path = './model' + str(episode) + '.ckpt'
-    if coll_num >= 7:
+    if coll_num >= 6:
         agent.save(save_path)

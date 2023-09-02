@@ -8,15 +8,14 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from env import RobotEnv
-import torch as th
+import torch as th 
 import torch.nn as nn
 from stable_baselines3.common.policies import BaseFeaturesExtractor
-
 # class CustomCNN(BaseFeaturesExtractor):
 #     def __init__(self, observation_space,  features_dim=3136):
-
+        
 #         super().__init__(observation_space, features_dim)
-
+        
 #         # 处理4通道输入
 #         self.cnn = nn.Sequential(
 #             nn.Conv2d(4, 32, kernel_size=8, stride=4, padding=0),
@@ -30,11 +29,9 @@ from stable_baselines3.common.policies import BaseFeaturesExtractor
 #     def forward(self, observations):
 #         x = observations.permute(0, 3, 1, 2)
 #         return self.cnn(x)
-NUM_ENV = 5
-LOG_DIR = "logs-robot"
+NUM_ENV = 6
+LOG_DIR = "logs-robot-plus"
 os.makedirs(LOG_DIR, exist_ok=True)
-
-
 # policy_kwargs = policy_kwargs = dict(
 #     features_extractor_class=CustomCNN,
 # )
@@ -54,7 +51,7 @@ def linear_schedule(initial_value, final_value=0.0):
 
 def make_env(seed=0):
     def _init():
-        env = RobotEnv(False)
+        env = RobotEnv()
         env = ActionMasker(env, RobotEnv.get_action_mask)
         env = Monitor(env)
         return env
@@ -88,9 +85,8 @@ def main():
         tensorboard_log=LOG_DIR,
         device="cuda",
     )
-    # model = MaskablePPO.load("trained_models_CNN/ppo_snake_40000000_steps.zip", env=env)
     # Set the save directory
-    save_dir = "trained_models_CNN"
+    save_dir = "trained_models_CNN4"
     os.makedirs(save_dir, exist_ok=True)
 
     checkpoint_interval = 5000  # checkpoint_interval * num_envs = total_steps_per_checkpoint
@@ -103,7 +99,7 @@ def main():
         sys.stdout = log_file
 
         model.learn(
-            total_timesteps=int(200 * 10e4),
+            total_timesteps=int(300 * 10e4),
             callback=[checkpoint_callback]
         )
         env.close()
@@ -113,7 +109,6 @@ def main():
 
     # Save the final model
     model.save(os.path.join(save_dir, "ppo_robot_final.zip"))
-
 
 if __name__ == "__main__":
     main()

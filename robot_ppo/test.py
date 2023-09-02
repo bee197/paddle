@@ -2,10 +2,11 @@ import os
 import time
 import random
 import numpy as np
+from matplotlib import pyplot as plt
 from sb3_contrib import MaskablePPO
 from env import RobotEnv
 
-MODEL_PATH = r"trained_models_CNN/ppo_robot_25000_steps"
+MODEL_PATH = "trained_models_CNN4/ppo_robot_570000_steps.zip"
 
 NUM_EPISODE = 20
 
@@ -14,8 +15,8 @@ seed = random.randint(0, 1e9)
 
 env = RobotEnv(True)
 
-num = 3625000
-while num <= 3625000:
+num = 30000
+while num <= 450000:
     # Load the trained model
     model = MaskablePPO.load(MODEL_PATH)
 
@@ -26,6 +27,12 @@ while num <= 3625000:
 
     coll_num = 0
     for episode in range(10):
+        print('env.observation_space=', env.observation_space)
+        print('env.action_space=', env.action_space)
+        rewards = []
+
+
+        print(np.sum(rewards))
         obs = env.reset()
         episode_reward = 0
         done = False
@@ -43,16 +50,18 @@ while num <= 3625000:
             mask = env.get_action_mask()
             action, _ = model.predict(state, action_masks=mask)
             num_step += 1
-            obs, reward, done, truncated, info = env.step(int(action))
+            obs, reward, done, info = env.step(int(action))
             info["action"] = action
             if done:
                 if info["iscoll"]:
                     coll_num += 1
                 break
             episode_reward += reward
-
+            rewards.append(reward)
+        plt.plot(rewards)
+        plt.show()
     # if coll_num >= 5:
     print(MODEL_PATH, coll_num)
     # print(f"total_reward:{episode_reward}")
-    num += 25000
-    MODEL_PATH = 'trained_models_CNN/ppo_robot_' + str(num) + '_steps'
+    num += 30000
+    MODEL_PATH = 'trained_models_CNN4/ppo_robot_' + str(num) + '_steps'

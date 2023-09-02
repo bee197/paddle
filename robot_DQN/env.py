@@ -27,6 +27,7 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __init__(self, render: bool = False):
+        self.robot_pos_prev = None
         self.hit_num = None
         self.angle_prev2 = None
         self.distance_prev2 = None
@@ -125,6 +126,7 @@ class RobotEnv(gym.Env):
 
         self.angle_prev = np.abs(coll_angle - robot_angle)
         self.angle_prev2 = np.abs(coll_angle2 - robot_angle2)
+        self.robot_pos_prev = robot_pos
 
         # 获得图片
         obs = self.__get_observation()
@@ -163,10 +165,17 @@ class RobotEnv(gym.Env):
         coll_robot2 = np.array(coll_pos2) - np.array(robot_pos2)
         robot_angle2 = math.atan2(robot_ori2[0], robot_ori2[1])
         coll_angle2 = math.atan2(coll_robot2[0], coll_robot2[1])
+        # 机器人与机器人向量
+        robot_robot = np.array(robot_pos) - np.array(self.robot_pos_prev)
+        # 机器人与障碍物的距离
+        robot_robot_dis = np.linalg.norm(robot_robot)
+        # print("robot_robot_dis:", robot_robot_dis)
 
         # TODO:
-        angle = np.abs(coll_angle - robot_angle)
-        angle2 = np.abs(coll_angle2 - robot_angle2)
+        an1 = coll_angle - robot_angle
+        an2 = coll_angle2 - robot_angle2
+        angle = np.abs(an1)
+        angle2 = np.abs(an2)
 
         # 设置奖励:足球 TODO:
         # TODO:改进人工势场算法 Uatt = 0.5 * ξ * ||qgoal - q||^2
@@ -180,14 +189,25 @@ class RobotEnv(gym.Env):
 
         # 沿着足球有奖励
         reward_goal = 0
+        video_in = angle < self.h_fov / 2
         if video_in:
-            reward_goal += 1 / (distance + 1)
-        # if video_in and distance <= 8:
-        #     reward_goal += 1
-        # if angle2 < 0.5:
-        #     close_angle = self.angle_prev - angle
-        #     close_dis = self.distance_prev - distance
-        #     reward_goal += 10 * close_angle + 5 * close_dis
+            close = self.angle_prev - angle
+            if angle > 0.24:
+                # 角度靠近
+                if close > 0:
+                    reward_goal += (1 / (distance + 1)) * (1 - angle / (self.h_fov / 2))
+                # 角度偏移
+                else:
+                    reward_goal += -(1 / (distance + 1) + 1) * (1 - angle / (self.h_fov / 2))
+            else:
+                # 距离靠近
+                if self.distance_prev - distance > 0:
+                    reward_goal += 1 / (distance + 1)
+                # 距离偏移
+                else:
+                    reward_goal += -(1 / (distance + 1) + 1)
+        else:
+            reward_goal -= 1
 
         # 障碍物
         reward_coll = 0
@@ -233,12 +253,13 @@ class RobotEnv(gym.Env):
         self.angle_prev = angle
         self.distance_prev2 = distance2
         self.angle_prev2 = angle2
+        self.robot_pos_prev = robot_pos
 
         # 获得图片
         obs = self.__get_observation()
 
-        distance = paddle.to_tensor([self.distance_prev, self.distance_prev2])
-        angle = paddle.to_tensor([self.angle_prev, self.angle_prev2])
+        distance = paddle.to_tensor([distance, distance2])
+        angle = paddle.to_tensor([an1, an2])
         obs = paddle.to_tensor(obs, dtype='float32')
 
         obs = [(obs, distance, angle)]
@@ -275,14 +296,17 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __apply_action(self, action):
+        # action = 2
         left_v = 10.
         right_v = 10.
         # print("action : ", action)
         if action == 0:
-            left_v = 5.
+            left_v = 2.
         elif action == 2:
-            right_v = 5.
+            right_v = 2.
 
+        # distance = (left_v + right_v) / 2 * TIME_STEP
+        # print("distance : ", distance)
         # 设置速度
         p.setJointMotorControlArray(
             bodyUniqueId=self.robot,
