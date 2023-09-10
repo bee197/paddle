@@ -11,7 +11,7 @@ from gym import spaces
 import pybullet as p
 
 STACK_SIZE = 3
-STEP_MAX = 300
+STEP_MAX = 400
 BASE_RADIUS = 0.5
 BASE_THICKNESS = 0.2
 TIME_STEP = 0.02
@@ -27,6 +27,8 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __init__(self, render: bool = False):
+        self.distance_target_direct_prev = None
+        self.distace_coll_direct_prev = None
         self.robot_pos_prev = None
         self.hit_num = None
         self.angle_prev2 = None
@@ -116,7 +118,8 @@ class RobotEnv(gym.Env):
         fov_rad = math.radians(fov)
         self.h_fov = math.atan(math.tan(fov_rad / 2) * aspect) * 2
         # 上一步的距离
-        self.distance_prev, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance(self.soccer)
+        self.distance_prev, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance(
+            self.soccer)
         self.distance_prev2, distance_ori, distance_coll, robot_pos, coll_pos2, robot_ori2, coll_ori = self.__get_distance(
             self.soccer)
         robot_angle = math.atan2(robot_ori[0], robot_ori[1])
@@ -128,16 +131,27 @@ class RobotEnv(gym.Env):
         self.angle_prev2 = np.abs(coll_angle2 - robot_angle2)
         self.robot_pos_prev = robot_pos
 
+        self.distance_target_direct_prev = self.distance_prev * self.angle_prev
+        self.distace_coll_direct_prev = self.distance_prev * self.angle_prev2
+
         # 获得图片
         obs = self.__get_observation()
-
-        distance = paddle.to_tensor([self.distance_prev, self.distance_prev2])
-        angle = paddle.to_tensor([self.angle_prev, self.angle_prev2])
         obs = paddle.to_tensor(obs, dtype='float32')
 
-        obs = [(obs, distance, angle)]
-
         return obs
+
+    def get_view_range(self):
+        # 使用已有相机参数
+        fov = 50.0
+        aspect = 1.0
+        near = 0.01
+        far = 20
+
+        # 计算水平视野角度
+        fov_rad = math.radians(fov)
+        h_fov = math.atan(math.tan(fov_rad / 2) * aspect) * 2
+
+        return h_fov
 
     # ---------------------------------------------------------#
     #   step
@@ -170,12 +184,19 @@ class RobotEnv(gym.Env):
         # 机器人与障碍物的距离
         robot_robot_dis = np.linalg.norm(robot_robot)
         # print("robot_robot_dis:", robot_robot_dis)
+        # 机器人与障碍物的夹角
+        h_fov = self.get_view_range()
 
         # TODO:
         an1 = coll_angle - robot_angle
         an2 = coll_angle2 - robot_angle2
-        angle = np.abs(an1)
-        angle2 = np.abs(an2)
+        # # 角度
+        angle = np.abs(coll_angle - robot_angle)
+        # # print(angle)
+        angle2 = np.abs(coll_angle2 - robot_angle2)
+        # 方向距离
+        distance_target_direct = distance * angle
+        distace_coll_direct = distance2 * angle2
 
         # 设置奖励:足球 TODO:
         # TODO:改进人工势场算法 Uatt = 0.5 * ξ * ||qgoal - q||^2
@@ -189,25 +210,27 @@ class RobotEnv(gym.Env):
 
         # 沿着足球有奖励
         reward_goal = 0
-        video_in = angle < self.h_fov / 2
-        if video_in:
-            close = self.angle_prev - angle
-            if angle > 0.24:
-                # 角度靠近
-                if close > 0:
-                    reward_goal += (1 / (distance + 1)) * (1 - angle / (self.h_fov / 2))
-                # 角度偏移
+        target_in = angle < (h_fov / 2 + 0.24)
+        # 先摆脱障碍物
+        if distace_coll_direct > 1:
+            if angle > 0.34:
+                if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
+                    reward_goal += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
+                            1 - angle / (h_fov / 2))
                 else:
-                    reward_goal += -(1 / (distance + 1) + 1) * (1 - angle / (self.h_fov / 2))
+                    reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
             else:
-                # 距离靠近
                 if self.distance_prev - distance > 0:
-                    reward_goal += 1 / (distance + 1)
-                # 距离偏移
+                    reward_goal += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1)
                 else:
-                    reward_goal += -(1 / (distance + 1) + 1)
+                    reward_goal += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
         else:
-            reward_goal -= 1
+            if self.distace_coll_direct_prev - distace_coll_direct > 0:
+                reward_goal += -(1 / (distance_target_direct + 1) + 2)
+            else:
+                reward_goal += (1 / (distance_target_direct + 1) + 1)
+        ##
+        iscoll = False
 
         # 障碍物
         reward_coll = 0
@@ -229,7 +252,7 @@ class RobotEnv(gym.Env):
         # 距离小于2,且相撞
         elif self.__is_collision(self.soccer):
             print(f"!!!足球!!!")
-            reward += 10
+            reward += 6
             info = True
             done = True
         # 距离小于2,又没有相撞
@@ -243,10 +266,12 @@ class RobotEnv(gym.Env):
             if self.hit_num >= 20:
                 done = True
                 print(f"!")
+                reward = -12
         # 步数超过限制
-        if self.step_num > STEP_MAX:
+        if self.step_num > STEP_MAX or not target_in:
             print("-")
             done = True
+            reward = -12
 
         # TODO:上一次的距离角度
         self.distance_prev = distance
@@ -254,29 +279,24 @@ class RobotEnv(gym.Env):
         self.distance_prev2 = distance2
         self.angle_prev2 = angle2
         self.robot_pos_prev = robot_pos
+        self.distace_coll_direct_prev = distace_coll_direct
+        self.distance_target_direct_prev = distance_target_direct
 
         # 获得图片
         obs = self.__get_observation()
-
-        distance = paddle.to_tensor([distance, distance2])
-        angle = paddle.to_tensor([an1, an2])
         obs = paddle.to_tensor(obs, dtype='float32')
 
-        obs = [(obs, distance, angle)]
+        # print(reward)
 
         return obs, reward, done, info
 
     def seed(self):
         # 随机足球的坐标
         x1 = np.random.uniform(6, 7)
-        # x1 = 6
-        # y1 = np.random.uniform(-2, 2)
-        y1 = np.random.choice([-2, 2], size=1)
-        # x2 = np.random.uniform(3, 4)
-        x2 = 4
+        y1 = np.random.uniform(-2, 2)
+        x2 = np.random.uniform(3, 4)
         # y2 = np.random.uniform(-1, 1)
-        y2 = 0
-        # y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
+        y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
 
         self.coord1 = [x1, y1, 0.4]
         self.coord2 = [x2, y2, 0.]
@@ -296,13 +316,15 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __apply_action(self, action):
-        # action = 2
-        left_v = 10.
-        right_v = 10.
+        # print(action)
+        left_v = 5.
+        right_v = 5.
         # print("action : ", action)
         if action == 0:
+            right_v = 10
             left_v = 2.
         elif action == 2:
+            left_v = 10
             right_v = 2.
 
         # distance = (left_v + right_v) / 2 * TIME_STEP
@@ -405,17 +427,11 @@ class RobotEnv(gym.Env):
     #   是否碰撞
     # ---------------------------------------------------------#
 
-    def __is_collision(self, id):
-        P_min, P_max = p.getAABB(self.robot)
-        id_tuple = p.getOverlappingObjects(P_min, P_max)
-        if len(id_tuple) > 1:
-            for ID, _ in id_tuple:
-                if ID == id:
-                    return True
-                else:
-                    continue
+    def __is_collision(self, uid):
 
-        return False
+        is_coll = bool(p.getContactPoints(bodyA=self.robot, bodyB=uid, physicsClientId=self._physics_client_id))
+
+        return is_coll
 
     # ---------------------------------------------------------#
     #   合成相机
@@ -499,7 +515,7 @@ class RobotEnv(gym.Env):
             baseCollisionShapeIndex=collision_shape_id,
             baseVisualShapeIndex=visual_shape_id,
             basePosition=coord,
-            baseOrientation=p.getQuaternionFromEuler([3.14/2, 0, 0]),
+            baseOrientation=p.getQuaternionFromEuler([3.14 / 2, 0, 0]),
             useMaximalCoordinates=True
         )
 

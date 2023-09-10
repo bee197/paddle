@@ -35,9 +35,10 @@ class Agent(parl.Agent):
         # cv2.waitKey(1)
         # obs = paddle.to_tensor(obs, dtype='float32')
         Q = self.alg.predict(obs)
-        # print("Q : ", Q[0])
+        print("Q : ", Q[0])
         act = int(Q.argmax())
         # print("action : ", act)
+
 
         return act
 

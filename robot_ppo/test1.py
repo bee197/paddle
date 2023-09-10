@@ -5,16 +5,16 @@ from sb3_contrib import MaskablePPO
 # import imageio
 from env import RobotEnv
 
-NUM_EPISODE = 100
+NUM_EPISODE = 10
 
 seed = random.randint(0, 1e9)
 print(f"Using seed = {seed} for testing.")
 
-env = RobotEnv(False)
+env = RobotEnv(True)
 
-num = 1050000
+num = 1110000
 MODEL_PATH = 'trained_models_CNN4/ppo_robot_' + str(num) + '_steps'
-while num <= 1110000:
+while num <= 1170000:
     total_reward = 0
     total_score = 0
     min_score = 1e9

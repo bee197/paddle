@@ -15,12 +15,8 @@ def run_episode(agent, env, rpm):
     while True:
         steps += 1
         # 升维 [3,84,84] ->[1,3,84,84]
-        obs, distance, angle = obs[0]
         obs = obs.unsqueeze(0)
         # print(obs.shape)
-        distance = distance.unsqueeze(0)
-        angle = angle.unsqueeze(0)
-        obs = [(obs, distance, angle)]
 
         action = agent.sample(obs)
         next_obs, reward, done, info = env.step(action)
@@ -57,11 +53,7 @@ def evaluate(env, agent):
         while True:
             steps += 1
             # 升维 [4,84,84] ->[1,4,84,84]
-            obs, distance, angle = obs[0]
             obs = obs.unsqueeze(0)
-            distance = distance.unsqueeze(0)
-            angle = angle.unsqueeze(0)
-            obs = [(obs, distance, angle)]
 
             action = agent.predict(obs)
             # print('action: ', action)

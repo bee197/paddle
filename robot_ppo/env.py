@@ -25,6 +25,8 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __init__(self, render: bool = False):
+        self.distace_coll_direct_prev = None
+        self.distance_target_direct_prev = None
         self.collision = None
         self.soccer = None
         self.plane = None
@@ -109,7 +111,7 @@ class RobotEnv(gym.Env):
         coll_robot2 = np.array(coll_pos2) - np.array(robot_pos2)
         robot_angle2 = math.atan2(robot_ori2[0], robot_ori2[1])
         coll_angle2 = math.atan2(coll_robot2[0], coll_robot2[1])
-                # # 角度
+        # # 角度
         angle = np.abs(coll_angle - robot_angle)
         # # print(angle)
         angle2 = np.abs(coll_angle2 - robot_angle2)
@@ -158,31 +160,33 @@ class RobotEnv(gym.Env):
         angle = np.abs(coll_angle - robot_angle)
         # # print(angle)
         angle2 = np.abs(coll_angle2 - robot_angle2)
-        #方向距离
+        # 方向距离
         distance_target_direct = distance * angle
         distace_coll_direct = distance2 * angle2
+        print(distace_coll_direct)
         # 获得图片
         pic = self.__get_observation()
         # 设置奖励 TODO:
         reward = 0
-        target_in = angle <(h_fov / 2+0.24)
-        ##先摆脱障碍物
+        target_in = angle < (h_fov / 2 + 0.24)
+        # 先摆脱障碍物
         if distace_coll_direct > 1:
             if angle > 0.34:
-                if self.distance_prev-distance > 0 and self.angle_prev-angle >0:
-                    reward += (1/(distance_target_direct/2+1)+1)*(1/(distance+1)+1)*(1 - angle/(h_fov/2))
+                if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
+                    reward += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
+                                1 - angle / (h_fov / 2))
                 else:
-                    reward +=-(1/(distance_target_direct/2+1)+1)*(1/(distance+1)+1)*(1 + angle)
+                    reward += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
             else:
-                if self.distance_prev-distance > 0:
-                    reward += (1/(distance_target_direct/2+1))*(1/(distance+1)+1)
+                if self.distance_prev - distance > 0:
+                    reward += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1)
                 else:
-                    reward += -(1/(distance_target_direct/2+1)+2)*(1/(distance+1)+1)
+                    reward += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
         else:
-            if self.distace_coll_direct_prev-distace_coll_direct>0:
-                reward += -(1/(distance_target_direct+1)+2)
+            if self.distace_coll_direct_prev - distace_coll_direct > 0:
+                reward += -(1 / (distance_target_direct + 1) + 2)
             else:
-                reward += (1/(distance_target_direct+1)+1)
+                reward += (1 / (distance_target_direct + 1) + 1)
         ##
         iscoll = False
         if distance > 2:
@@ -212,8 +216,10 @@ class RobotEnv(gym.Env):
         # print(obs.shape)
         # cv2.imshow("obs", obs)
         # cv2.waitKey(1)
-        info = {"distance_coll": distance_coll, "distance": distance, "distance_col":distance2,"angle_diff":np.abs(angle2-angle), "reward": reward,
-         "iscoll": iscoll,"target_angle":angle,"col_angle":angle2,"direct_coll":distace_coll_direct,"direct_target":distance_target_direct}
+        info = {"distance_coll": distance_coll, "distance": distance, "distance_col": distance2,
+                "angle_diff": np.abs(angle2 - angle), "reward": reward,
+                "iscoll": iscoll, "target_angle": angle, "col_angle": angle2, "direct_coll": distace_coll_direct,
+                "direct_target": distance_target_direct}
         # 更新 TODO:
         self.distance_prev = distance
         self.angle_prev = angle
@@ -254,7 +260,7 @@ class RobotEnv(gym.Env):
         right_v = 5.
         # print("action : ", action)
         if action == 0:
-            right_v =10
+            right_v = 10
             left_v = 2.
         elif action == 2:
             left_v = 10
@@ -354,7 +360,7 @@ class RobotEnv(gym.Env):
         #             return True
         #         else:
         #             continue
-        is_coll = bool(p.getContactPoints(bodyA=self.robot, bodyB=uid,physicsClientId=self._physics_client_id))
+        is_coll = bool(p.getContactPoints(bodyA=self.robot, bodyB=uid, physicsClientId=self._physics_client_id))
 
         return is_coll
 
@@ -462,7 +468,10 @@ class RobotEnv(gym.Env):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import time
+
     env = RobotEnv(True)
+
+
     # 认识游戏环境
     def test_env():
         print('env.observation_space=', env.observation_space)
@@ -500,4 +509,6 @@ if __name__ == '__main__':
         #     if done:
         #         break
         #     state = next_state
+
+
     test_env()
