@@ -12,7 +12,7 @@ import paddle.distributed as dist
 # print(parl.__version__)
 
 class PPO(Algorithm):
-    def __init__(self, model, state_dim, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip):
+    def __init__(self, model, lr, betas, gamma, K_epochs, eps_clip):
         self.model = model
         self.lr = lr
         self.betas = betas

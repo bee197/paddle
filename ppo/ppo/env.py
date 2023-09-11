@@ -296,8 +296,8 @@ class RobotEnv(gym.Env):
         x1 = np.random.uniform(6, 7)
         y1 = np.random.uniform(-2, 2)
         x2 = np.random.uniform(3, 4)
-        # y2 = np.random.uniform(-1, 1)
-        y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
+        y2 = np.random.uniform(-1, 1)
+        # y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
 
         self.coord1 = [x1, y1, 0.4]
         self.coord2 = [x2, y2, 0.]
