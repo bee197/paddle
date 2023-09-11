@@ -5,7 +5,6 @@ import torch
 from paddle.distribution import Categorical
 from parl.utils.scheduler import LinearDecayScheduler
 from torch import device
-
 from model import Model
 from algorithm import PPO
 import paddle.nn.functional as F

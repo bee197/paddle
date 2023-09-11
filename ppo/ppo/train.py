@@ -6,8 +6,8 @@ import torch
 from gym import spaces
 from parl.utils import summary
 import numpy as np
-from ppo.algorithm import PPO
-from ppo.env import RobotEnv
+from algorithm import PPO
+from env import RobotEnv
 from model import Model
 from agent import PPOAgent
 from storage import ReplayMemory
@@ -68,32 +68,6 @@ def run_episode(agent, env, rpm, timestep):
         if done:
             break
     return info, timestep
-    # if running_reward > (log_interval * solved_reward):
-    #     print("########## Solved! ##########")
-    #     torch.save(ppo.policy.state_dict(), './PPO_{}.pth'.format(env_name))
-    #     break
-    # if i_episode % log_interval == 0:
-    #     avg_length = int(avg_length / log_interval)
-    #     running_reward = int((running_reward / log_interval))
-
-        # print('Episode {} \t avg length: {} \t reward: {}'.format(i_episode, avg_length, running_reward))
-        # running_reward = 0
-        # avg_length = 0
-#     value = agent.value(obs)
-#     rpm.adv(value, done)
-#     value_loss, action_loss, entropy_loss, lr = agent.learn(rpm)
-#     # 样本数量大于MEMORY_WARMUP_SIZE（经验缓存的预热阶段数量）且步数是5的倍数，则从经验缓存中抽样一个批次的经验样本
-#     if (total_steps + 1) // config['test_every_steps'] >= test_flag:
-#         while (total_steps + 1) // config['test_every_steps'] >= test_flag:
-#             test_flag += 1
-#
-#         avg_reward = run_evaluate_episodes(agent)
-#         summary.add_scalar('eval/episode_reward', avg_reward, total_steps)
-#     # print("reward : ", reward)
-#     # print("reward : ", reward)
-# rpm.buffer.clear()
-
-    return info
 
 
 # 创建环境
@@ -125,7 +99,7 @@ while episode < max_episodes:
             coll_times += 1
         else:
             coll_times = 0
-        save_path_2 = './model' + str(episode) + '.ckpt'
+        save_path_2 = '../ppo/train_log/model' + str(episode) + '.ckpt'
         if coll_times >= 5:
             agent.save(save_path_2)
         episode += 1
@@ -134,5 +108,5 @@ while episode < max_episodes:
     summary.add_scalar("coll_num", is_coll, global_step=episode)
 
     # 保存模型
-    agent.save("./model.ckpt")
-    save_path = './model' + str(episode) + '.ckpt'
+    agent.save("../ppo/train_log/model.ckpt")
+    save_path = '../ppo/train_log/model' + str(episode) + '.ckpt'

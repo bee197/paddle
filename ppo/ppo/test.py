@@ -4,8 +4,8 @@ import torch
 from gym import spaces
 from parl.utils import summary
 import numpy as np
-from ppo.algorithm import PPO
-from ppo.env import RobotEnv
+from algorithm import PPO
+from env import RobotEnv
 from model import Model
 from agent import PPOAgent
 from storage import ReplayMemory
