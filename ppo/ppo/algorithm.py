@@ -10,10 +10,6 @@ from model import Model
 import paddle.distributed as dist
 
 # print(parl.__version__)
-dist.init_parallel_env()
-dev_id = dist.ParallelEnv().dev_id
-gpu_id = dist.ParallelEnv().dev_id
-
 
 class PPO(Algorithm):
     def __init__(self, model, state_dim, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip):

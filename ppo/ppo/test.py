@@ -39,8 +39,6 @@ def run_evaluate_episodes(agent, env, max_epi=10):
         running_reward = 0
         timestep = 0
         obs = env.reset()
-
-        # done = np.zeros(step_nums, dtype='float32')
         while True:
             timestep += 1
             # 升维 [3,84,84] ->[1,3,84,84]
@@ -70,8 +68,7 @@ action_dim = env.action_space.n
 model = Model()
 ppo = PPO(model, state, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip)
 rpm = ReplayMemory()
-obs = env.reset()  # 初始化
-agent = PPOAgent(ppo, obs, model)
+agent = PPOAgent(ppo, model)
 # 导入策略网络参数
 if os.path.exists('../ppo/train_log/model.ckpt'):
     agent.restore('../ppo/train_log/model.ckpt')
@@ -81,9 +78,7 @@ coll_times = 0
 TRAIN_EPISODE = 1e6
 for i_episode in range(1, max_episodes + 1):
     is_coll = 0
-    obs = env.reset()
     for i in range(50):
-        # print('111111111111', obs.shape)
         coll = run_evaluate_episodes(agent, env)
         if coll:
             is_coll += 1

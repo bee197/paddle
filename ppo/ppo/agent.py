@@ -11,7 +11,7 @@ import paddle.nn.functional as F
 
 
 class PPOAgent(parl.Agent):
-    def __init__(self, algorithm, obs, model):
+    def __init__(self, algorithm, model):
         super(PPOAgent, self).__init__(algorithm)
         self.alg = algorithm
         self.model = model

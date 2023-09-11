@@ -36,8 +36,6 @@ K_epochs = 4
 eps_clip = 0.2
 
 
-
-
 def run_episode(agent, env, rpm, timestep):
     running_reward = 0
     obs = env.reset()
@@ -80,7 +78,7 @@ model = Model()
 ppo = PPO(model, state, action_dim, n_latent_var, lr, betas, gamma, K_epochs, eps_clip)
 rpm = ReplayMemory()
 obs = env.reset()  # 初始化
-agent = PPOAgent(ppo, obs, model)
+agent = PPOAgent(ppo, model)
 # 导入策略网络参数
 if os.path.exists('../ppo/train_log/model.ckpt'):
     agent.restore('../ppo/train_log/model.ckpt')
