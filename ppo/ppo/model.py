@@ -1,14 +1,13 @@
-import cv2
 import numpy as np
-import paddle
 import parl
 import paddle.nn as nn
 import paddle.nn.functional as F
 import paddle
-import torch
 from paddle.distribution import Categorical
 
-update_timestep = 1000
+UPDATE_TIMESTEP = 1000
+
+
 # ---------------------------------------------------------#
 #   Model
 # ---------------------------------------------------------#
@@ -26,10 +25,10 @@ class Model(parl.Model):
 
         self.fc1 = nn.Linear(3136, 512)
         self.fc2 = nn.Linear(512, 3)
-        self.fc4 = nn.Linear(512, 1)
+        self.fc3 = nn.Linear(512, 1)
 
-    def value(self, obs, action):
-        obs = obs.reshape((update_timestep, 3, 84, 84))
+    def value(self, obs):
+        # obs = obs.reshape((UPDATE_TIMESTEP, 3, 84, 84))
         # print("obs", obs)
         x = self.conv1(obs)
         x = F.leaky_relu(x)
@@ -42,22 +41,15 @@ class Model(parl.Model):
 
         x = self.fc1(x)
         x = F.leaky_relu(x)
-        x = self.fc4(x)
-        Q = F.leaky_relu(x)
+        value = self.fc3(x)
 
-        action_probs = self.policy(obs)
-        action_probs = F.softmax(action_probs)
-        action_probs = np.array(action_probs)
-        action_probs = paddle.to_tensor(action_probs)
-        dist = Categorical(action_probs)  # 按照给定的概率分布来进行采样
+        # action_probs = self.policy(obs)
+        # action_probs = F.softmax(action_probs)
+        # action_probs = np.array(action_probs)
+        # action_probs = paddle.to_tensor(action_probs)
+        # dist = Categorical(action_probs)  # 按照给定的概率分布来进行采样
 
-        action_logprobs = dist.log_prob(action)
-        # print("action_logprobs", action_logprobs)
-        dist_entropy = dist.entropy()
-        state_value = Q
-        # print(state_value)
-
-        return action_logprobs, paddle.squeeze(state_value), dist_entropy
+        return value
 
     def policy(self, obs):
         # print("obs", obs)
@@ -72,25 +64,12 @@ class Model(parl.Model):
 
         x = self.fc1(x)
         x = F.leaky_relu(x)
-        x = self.fc2(x)
-        x = F.leaky_relu(x)
+        logits = self.fc2(x)
 
-        logits = x
         # TODO:
         # print("logits", logits)
 
         return logits
 
-
     def get_params(self):
         return self.parameters()
-
-
-
-
-
-
-
-
-
-

@@ -37,24 +37,19 @@ def run_episode(agent, env, rpm, timestep):
     # done = np.zeros(step_nums, dtype='float32')
     while True:
         timestep += 1
-        # print("timestep", timestep )
         # 升维 [3,84,84] ->[1,3,84,84]
-        #     obs = obs[0]
         obs = obs.unsqueeze(0)
-        # print('11', obs.shape)
-        action = agent.sample(obs, rpm)
+        value, action, logprob, _ = agent.sample(obs, rpm)
         next_obs, reward, done, info = env.step(action)
         obs = next_obs
-        # action = [action]  # 方便存入replaymemory
-        # rpm.buffer.append((obs, action, reward, next_obs,done)
-        rpm.rewards.append(reward)
-        rpm.is_terminals.append(done)
+        # rpm.rewards.append(reward)
+        # rpm.is_terminals.append(done)
+        rpm.append(obs, action, logprob, reward, done, value.flatten())
         if timestep % UPDATE_TIMESTEP == 0:
+            value = agent.value(obs)
+            rpm.compute_returns(value, done)
             # print(paddle.to_tensor(np.array(rpm.is_terminals)).shape)
             agent.learn(rpm)
-
-            rpm.clear_rpm()
-            # print(paddle.to_tensor(np.array(rpm.is_terminals)))
             timestep = 0
         running_reward += reward
         if done:
@@ -67,8 +62,9 @@ env = RobotEnv(False)
 # 使用PARL框架创建agent
 model = Model()
 ppo = PPO(model, LR, BETAS, GAMMA, K_EPOCHS, EPS_CLIP)
-rpm = ReplayMemory()
 agent = PPOAgent(ppo, model)
+rpm = ReplayMemory()
+
 # 导入策略网络参数
 if os.path.exists('../ppo/train_log/model.ckpt'):
     agent.restore('../ppo/train_log/model.ckpt')

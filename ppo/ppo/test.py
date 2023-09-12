@@ -54,8 +54,9 @@ env = RobotEnv(True)
 # 使用PARL框架创建agent
 model = Model()
 ppo = PPO(model, LR, BETAS, GAMMA, K_EPOCHS, EPS_CLIP)
-rpm = ReplayMemory()
 agent = PPOAgent(ppo, model)
+rpm = ReplayMemory()
+
 # 导入策略网络参数
 if os.path.exists('../ppo/train_log/model.ckpt'):
     agent.restore('../ppo/train_log/model.ckpt')

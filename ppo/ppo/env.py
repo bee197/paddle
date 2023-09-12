@@ -261,12 +261,10 @@ class RobotEnv(gym.Env):
 
         # 与障碍物相撞
         if self.__is_collision(self.collision):
-            reward -= 10
-            self.hit_num += 1
-            if self.hit_num >= 20:
-                done = True
-                print(f"!")
-                reward = -12
+            print(f"!")
+            reward = -12
+            done = True
+
         # 步数超过限制
         if self.step_num > STEP_MAX or not target_in:
             print("-")
@@ -285,7 +283,6 @@ class RobotEnv(gym.Env):
         # 获得图片
         obs = self.__get_observation()
         obs = paddle.to_tensor(obs, dtype='float32')
-        # print('22',obs.shape)
 
         # print(reward)
 
