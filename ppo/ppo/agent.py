@@ -1,8 +1,7 @@
 import parl
 import paddle
 import numpy as np
-from paddle.distribution import Categorical
-import paddle.nn.functional as F
+from parl.utils.scheduler import LinearDecayScheduler
 
 
 class PPOAgent(parl.Agent):
@@ -10,6 +9,7 @@ class PPOAgent(parl.Agent):
         super(PPOAgent, self).__init__(algorithm)
         self.alg = algorithm
         self.model = model
+
 
     def sample(self, obs, rpm):
         obs = paddle.to_tensor(obs)

@@ -8,14 +8,15 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
 from env import RobotEnv
-import torch as th 
+import torch as th
 import torch.nn as nn
 from stable_baselines3.common.policies import BaseFeaturesExtractor
+
 # class CustomCNN(BaseFeaturesExtractor):
 #     def __init__(self, observation_space,  features_dim=3136):
-        
+
 #         super().__init__(observation_space, features_dim)
-        
+
 #         # 处理4通道输入
 #         self.cnn = nn.Sequential(
 #             nn.Conv2d(4, 32, kernel_size=8, stride=4, padding=0),
@@ -32,6 +33,8 @@ from stable_baselines3.common.policies import BaseFeaturesExtractor
 NUM_ENV = 6
 LOG_DIR = "logs-robot-plus"
 os.makedirs(LOG_DIR, exist_ok=True)
+
+
 # policy_kwargs = policy_kwargs = dict(
 #     features_extractor_class=CustomCNN,
 # )
@@ -109,6 +112,7 @@ def main():
 
     # Save the final model
     model.save(os.path.join(save_dir, "ppo_robot_final.zip"))
+
 
 if __name__ == "__main__":
     main()

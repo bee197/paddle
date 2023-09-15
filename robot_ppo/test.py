@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from sb3_contrib import MaskablePPO
 from env import RobotEnv
 
-MODEL_PATH = "trained_models_CNN4/ppo_robot_570000_steps.zip"
+MODEL_PATH = "trained_models_CNN4/ppo_robot_1050000_steps.zip"
 
 NUM_EPISODE = 20
 

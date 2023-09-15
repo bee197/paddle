@@ -1,9 +1,4 @@
 import os
-
-import paddle
-import parl
-import torch
-from gym import spaces
 from parl.utils import summary
 import numpy as np
 from algorithm import PPO
@@ -19,15 +14,15 @@ TRAIN_EPISODE = 1e6
 # 到达的学习的数据数
 UPDATE_TIMESTEP = 1000
 # 学习率
-LR = 0.0001
+LR = 0.0005
 # adm更新参数
 BETAS = (0.9, 0.99)
 # 折扣因子
-GAMMA = 0.95
+GAMMA = 0.94
 # 学习的次数
 K_EPOCHS = 4
 # ppo截断
-EPS_CLIP = 0.2
+EPS_CLIP = 0.1
 
 
 def run_episode(agent, env, rpm, timestep):
@@ -92,5 +87,7 @@ while episode < TRAIN_EPISODE:
     summary.add_scalar("coll_num", is_coll, global_step=episode)
 
     # 保存模型
-    agent.save("../ppo/train_log/model.ckpt")
+    agent.save('../ppo/train_log/model.ckpt')
     save_path = '../ppo/train_log/model' + str(episode) + '.ckpt'
+    if is_coll >= 10:
+        agent.save(save_path)

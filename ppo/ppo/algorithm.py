@@ -1,23 +1,30 @@
 import numpy as np
 import paddle
+from paddle import nn
 from paddle.distribution import Categorical
 from parl import Algorithm
 import paddle.nn.functional as F
+from parl.utils import LinearDecayScheduler
 
 device = paddle.CUDAPlace(0)
 
 
 class PPO(Algorithm):
-    def __init__(self, model, lr, betas, gamma, K_epochs, eps_clip):
+    def __init__(self, model, lr, betas, gamma, K_epochs, eps_clip=0.1):
         self.model = model
         self.lr = lr
+        self.eps = 1e-5
         self.betas = betas
+        self.max_grad_norm = 0.5
         self.gamma = gamma
         self.eps_clip = eps_clip
         self.K_epochs = K_epochs
         self.policy = model.to(device)
         self.mse_loss = paddle.nn.MSELoss(reduction='mean')
-        self.optimizer = paddle.optimizer.Adam(learning_rate=lr, parameters=self.policy.get_params())
+        clip = nn.ClipGradByValue(self.max_grad_norm)
+        self.optimizer = paddle.optimizer.Adam(learning_rate=lr, parameters=self.policy.get_params(), epsilon=self.eps,
+                                               grad_clip=clip)
+        self.lr_scheduler = LinearDecayScheduler(lr, int(1.5e6))
 
     def sample(self, obs):
         value = self.model.value(obs)
@@ -32,7 +39,6 @@ class PPO(Algorithm):
         return value, action, action_log_probs, action_entropy
 
     def predict(self, obs):
-
         logits = self.model.policy(obs)
         probs = F.softmax(logits)
         action = paddle.argmax(probs, 1)
@@ -49,6 +55,7 @@ class PPO(Algorithm):
               batch_return,
               batch_logprob,
               batch_adv):
+        self.lr = self.lr_scheduler.step(step_num=1)
         values = self.model.value(batch_obs)
         logits = self.model.policy(batch_obs)
 
@@ -83,8 +90,9 @@ class PPO(Algorithm):
         value_loss = 0.5 * paddle.maximum(value_losses,
                                           value_losses_clipped).mean()
 
-        loss = 0.5*value_loss + action_loss - 0.5*entropy_loss
+        loss = 0.5 * value_loss + action_loss - 0.01 * entropy_loss
 
+        self.optimizer.set_lr(self.lr)
         self.optimizer.clear_grad()
         loss.mean().backward()
         self.optimizer.step()

@@ -1,9 +1,7 @@
 import os
-import parl
-import torch
-from gym import spaces
-from parl.utils import summary
-import numpy as np
+
+from matplotlib import pyplot as plt
+
 from algorithm import PPO
 from env import RobotEnv
 from model import Model
@@ -30,6 +28,7 @@ def run_evaluate_episodes(agent, env, max_epi=10):
     for i in range(max_epi):
         running_reward = 0
         timestep = 0
+        episode_reward = []
         obs = env.reset()
         while True:
             timestep += 1
@@ -41,12 +40,11 @@ def run_evaluate_episodes(agent, env, max_epi=10):
             # print("action", action)
             next_obs, reward, done, info = env.step(action)
             obs = next_obs
-            rpm.rewards.append(reward)
-            rpm.is_terminals.append(done)
             running_reward += reward
+            episode_reward.append(reward)
             if done:
                 # print("done", next_done)
-                return info
+                return info, episode_reward
 
 
 # 创建环境
@@ -56,20 +54,23 @@ model = Model()
 ppo = PPO(model, LR, BETAS, GAMMA, K_EPOCHS, EPS_CLIP)
 agent = PPOAgent(ppo, model)
 rpm = ReplayMemory()
-
 # 导入策略网络参数
+
 if os.path.exists('../ppo/train_log/model.ckpt'):
     agent.restore('../ppo/train_log/model.ckpt')
 
 episode = 0
+
 coll_times = 0
 
 while episode < TRAIN_EPISODE:
     is_coll = 0
-    coll = run_evaluate_episodes(agent, env)
+    coll, episode_reward = run_evaluate_episodes(agent, env)
     if coll:
         is_coll += 1
         coll_times += 1
     else:
         coll_times = 0
     episode += 1
+    plt.plot(episode_reward)
+    plt.show()

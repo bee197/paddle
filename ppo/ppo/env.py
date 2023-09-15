@@ -1,7 +1,5 @@
 import collections
 import math
-from random import randint
-
 import cv2
 import gym
 import numpy as np
@@ -11,7 +9,7 @@ from gym import spaces
 import pybullet as p
 
 STACK_SIZE = 3
-STEP_MAX = 400
+STEP_MAX = 500
 BASE_RADIUS = 0.5
 BASE_THICKNESS = 0.2
 TIME_STEP = 0.02
@@ -195,8 +193,8 @@ class RobotEnv(gym.Env):
         # # print(angle)
         angle2 = np.abs(coll_angle2 - robot_angle2)
         # 方向距离
-        distance_target_direct = distance * angle
-        distace_coll_direct = distance2 * angle2
+        distance_target_direct = distance * math.sin(angle)
+        distace_coll_direct = distance2 * math.sin(angle2)
 
         # 设置奖励:足球 TODO:
         # TODO:改进人工势场算法 Uatt = 0.5 * ξ * ||qgoal - q||^2
@@ -211,20 +209,32 @@ class RobotEnv(gym.Env):
         # 沿着足球有奖励
         reward_goal = 0
         target_in = angle < (h_fov / 2 + 0.24)
+        # 对角度敏感
+        gamma = 1.5
         # 先摆脱障碍物
+        # 摆脱障碍物
         if distace_coll_direct > 1:
+            # 对足球角度大
             if angle > 0.34:
+                # 距离角度靠近足球
                 if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
                     reward_goal += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
-                            1 - angle / (h_fov / 2))
+                            1 - angle / (h_fov * gamma / 2))
+                # 距离角度之一远离足球
                 else:
                     reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
+                # print("reward_goal:", reward_goal)
+            # 对足球角度小
             else:
+                # 距离靠近足球
                 if self.distance_prev - distance > 0:
                     reward_goal += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1)
                 else:
                     reward_goal += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
+        # 没摆脱障碍物
         else:
+            # print("no")
+            # 角度更靠近障碍物
             if self.distace_coll_direct_prev - distace_coll_direct > 0:
                 reward_goal += -(1 / (distance_target_direct + 1) + 2)
             else:
@@ -266,8 +276,13 @@ class RobotEnv(gym.Env):
             done = True
 
         # 步数超过限制
-        if self.step_num > STEP_MAX or not target_in:
+        if self.step_num > STEP_MAX:
             print("-")
+            done = True
+            reward = -12
+        # 视野丢失
+        if not target_in:
+            print(".")
             done = True
             reward = -12
 
@@ -293,8 +308,8 @@ class RobotEnv(gym.Env):
         x1 = np.random.uniform(6, 7)
         y1 = np.random.uniform(-2, 2)
         x2 = np.random.uniform(3, 4)
-        y2 = np.random.uniform(-1, 1)
-        # y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
+        # y2 = np.random.uniform(-1, 1)
+        y2 = np.clip(np.random.normal(y1, NOISE), y1 - 0.5, y1 + 0.5)
 
         self.coord1 = [x1, y1, 0.4]
         self.coord2 = [x2, y2, 0.]
@@ -314,15 +329,15 @@ class RobotEnv(gym.Env):
     # ---------------------------------------------------------#
 
     def __apply_action(self, action):
-        left_v = 5.
-        right_v = 5.
+        left_v = 5
+        right_v = 5
         # print("action : ", action)
         if action == 0:
             right_v = 10
-            left_v = 2.
+            left_v = 3
         elif action == 2:
             left_v = 10
-            right_v = 2.
+            right_v = 3
 
         # distance = (left_v + right_v) / 2 * TIME_STEP
         # print("distance : ", distance)

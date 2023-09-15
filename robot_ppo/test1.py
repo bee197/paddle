@@ -1,5 +1,6 @@
 import random
 
+from matplotlib import pyplot as plt
 from sb3_contrib import MaskablePPO
 
 # import imageio
@@ -42,6 +43,8 @@ while num <= 1170000:
             if done:
                 break
             episode_reward.append(reward)
+        plt.plot(episode_reward)
+        plt.show()
     print(f"collnum:{collnum}")
     print(MODEL_PATH)
     num += 30000

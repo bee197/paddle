@@ -227,7 +227,7 @@ class RobotEnv(gym.Env):
         self.angle_prev2 = angle2
         self.distace_coll_direct_prev = distace_coll_direct
         self.distance_target_direct_prev = distance_target_direct
-        # print("reward : ", reward)
+        print(reward)
         return obs, reward, done, info
 
     def seed(self):
