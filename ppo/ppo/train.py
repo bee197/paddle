@@ -1,4 +1,7 @@
 import os
+from multiprocessing import freeze_support
+
+import paddle
 from parl.utils import summary
 import numpy as np
 from algorithm import PPO
@@ -6,13 +9,11 @@ from env import RobotEnv
 from model import Model
 from agent import PPOAgent
 from storage import ReplayMemory
-
-
+import random
+from stable_baselines3.common.vec_env import SubprocVecEnv
 
 # 玩多少次
-TRAIN_EPISODE = 1e6
-# 到达的学习的数据数
-UPDATE_TIMESTEP = 1000
+TRAIN_EPISODE = 12000
 # 学习率
 LR = 0.0005
 # adm更新参数
@@ -22,72 +23,95 @@ GAMMA = 0.94
 # 学习的次数
 K_EPOCHS = 4
 # ppo截断
-EPS_CLIP = 0.1
+EPS_CLIP = 0.2
+# 环境个数
+NUM_ENV = 6
+# 到达的学习的数据数
+UPDATE_TIMESTEP = 1000
 
 
-def run_episode(agent, env, rpm, timestep):
-    running_reward = 0
+def make_env(seed):
+    def _init():
+        env = RobotEnv(False)
+        return env
+
+    return _init
+
+
+def run_episode(agent, env, rpm):
     obs = env.reset()
-
+    reward_list = np.zeros(NUM_ENV, dtype='float32')
+    episode = 1
+    is_coll = 0
+    timestep = 1
     # done = np.zeros(step_nums, dtype='float32')
-    while True:
-        timestep += 1
+    while episode < TRAIN_EPISODE:
+        is_epi = False
         # 升维 [3,84,84] ->[1,3,84,84]
-        obs = obs.unsqueeze(0)
+        obs = paddle.to_tensor(obs, dtype='float32')
         value, action, logprob, _ = agent.sample(obs, rpm)
         next_obs, reward, done, info = env.step(action)
+        reward_list = np.append(reward_list, reward)
+        reward_norm = (reward - reward_list.mean()) / reward_list.std()
+        # print("reward_norm", reward_norm)
         obs = next_obs
-        # rpm.rewards.append(reward)
-        # rpm.is_terminals.append(done)
-        rpm.append(obs, action, logprob, reward, done, value.flatten())
+        action = action.reshape((NUM_ENV, 1))
+        rpm.append(obs, action, logprob, reward_norm, done, value.flatten())
+        # 每6000step学习一次
         if timestep % UPDATE_TIMESTEP == 0:
             value = agent.value(obs)
             rpm.compute_returns(value, done)
-            # print(paddle.to_tensor(np.array(rpm.is_terminals)).shape)
             agent.learn(rpm)
             timestep = 0
-        running_reward += reward
-        if done:
-            break
-    return info, timestep
+        # 计算碰撞次数
+        for i in range(NUM_ENV):
+            if info[i]["iscoll"]:
+                is_coll += 1
+        # 获取done中为True的索引
+        indices = np.where(done)[0]
+        # print("indices", indices)
+        if len(indices) > 0:
+            obs[indices] = env.env_method("reset", indices=indices)
+            reward_list[indices] = 0
+            episode += indices.shape[0]
+            is_epi = True
+        # 每50个episode绘制一次图像
+        if episode % 50 == 0 and is_epi:
+
+            # 绘制图像
+            print("coll-----------", episode, "----------num : ", is_coll)
+            summary.add_scalar("coll_num", is_coll, global_step=episode)
+
+            # 保存模型
+            agent.save('../ppo/train_log/model.ckpt')
+            save_path = '../ppo/train_log/model' + str(episode) + '.ckpt'
+            if is_coll >= 10:
+                agent.save(save_path)
+            is_coll = 0
+        timestep += 1
+        # print("timestep", timestep)
+    return
 
 
-# 创建环境
-env = RobotEnv(False)
-# 使用PARL框架创建agent
-model = Model()
-ppo = PPO(model, LR, BETAS, GAMMA, K_EPOCHS, EPS_CLIP)
-agent = PPOAgent(ppo, model)
-rpm = ReplayMemory()
+def main():
+    seed_set = set()
+    while len(seed_set) < NUM_ENV:
+        seed_set.add(random.randint(0, 1e9))
+    # 创建向量化环境
+    env = SubprocVecEnv([make_env(seed) for seed in seed_set])
 
-# 导入策略网络参数
-if os.path.exists('../ppo/train_log/model.ckpt'):
-    agent.restore('../ppo/train_log/model.ckpt')
+    # 使用PARL框架创建agent
+    model = Model()
+    ppo = PPO(model, LR, BETAS, GAMMA, K_EPOCHS, EPS_CLIP)
+    agent = PPOAgent(ppo, model)
+    rpm = ReplayMemory()
 
-episode = 0
-coll_times = 0
-timestep = 0
-while episode < TRAIN_EPISODE:
-    is_coll = 0
-    for i in range(50):
-        coll, timestep = run_episode(agent, env, rpm, timestep)
-        # 记录抓球个数
-        if coll:
-            is_coll += 1
-            coll_times += 1
-        else:
-            coll_times = 0
-        # 连续抓球5次,保存模型
-        save_path_2 = '../ppo/train_log/model' + str(episode) + '.ckpt'
-        if coll_times >= 5:
-            agent.save(save_path_2)
-        episode += 1
-    # 绘制图像
-    print("coll-----------", episode, "----------num : ", is_coll)
-    summary.add_scalar("coll_num", is_coll, global_step=episode)
+    # 导入策略网络参数
+    if os.path.exists('../ppo/train_log/model.ckpt'):
+        agent.restore('../ppo/train_log/model.ckpt')
 
-    # 保存模型
-    agent.save('../ppo/train_log/model.ckpt')
-    save_path = '../ppo/train_log/model' + str(episode) + '.ckpt'
-    if is_coll >= 10:
-        agent.save(save_path)
+    run_episode(agent, env, rpm)
+
+
+if __name__ == '__main__':
+    main()

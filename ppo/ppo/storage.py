@@ -1,6 +1,9 @@
 import numpy as np
 
-STEP_NUMS = 1000
+
+ENV_NUM = 6
+STEP_NUMS = 1000 * ENV_NUM
+
 class ReplayMemory:
     def __init__(self):
 
@@ -9,12 +12,12 @@ class ReplayMemory:
         self.obs_space = (3, 84, 84)
         self.act_space = (1,)
 
-        self.obs = np.zeros((STEP_NUMS, 1) + self.obs_space, dtype='float32')
-        self.actions = np.zeros((STEP_NUMS, 1) + self.act_space, dtype='float32')
-        self.logprobs = np.zeros((STEP_NUMS, 1), dtype='float32')
-        self.rewards = np.zeros((STEP_NUMS, 1), dtype='float32')
-        self.dones = np.zeros((STEP_NUMS, 1), dtype='float32')
-        self.values = np.zeros((STEP_NUMS, 1), dtype='float32')
+        self.obs = np.zeros((STEP_NUMS, ENV_NUM) + self.obs_space, dtype='float32')
+        self.actions = np.zeros((STEP_NUMS, ENV_NUM) + self.act_space, dtype='float32')
+        self.logprobs = np.zeros((STEP_NUMS, ENV_NUM), dtype='float32')
+        self.rewards = np.zeros((STEP_NUMS, ENV_NUM), dtype='float32')
+        self.dones = np.zeros((STEP_NUMS, ENV_NUM), dtype='float32')
+        self.values = np.zeros((STEP_NUMS, ENV_NUM), dtype='float32')
 
     def append(self, obs, action, logprob, reward, done, value):
         self.obs[self.cur_step] = obs

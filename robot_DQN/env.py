@@ -284,6 +284,7 @@ class RobotEnv(gym.Env):
 
         # 获得图片
         obs = self.__get_observation()
+
         obs = paddle.to_tensor(obs, dtype='float32')
 
         # print(reward)

@@ -2,7 +2,8 @@ import parl
 import paddle
 import numpy as np
 from parl.utils.scheduler import LinearDecayScheduler
-
+NUM_ENV = 6
+K_EPOCHS = 4
 
 class PPOAgent(parl.Agent):
     def __init__(self, algorithm, model):
@@ -31,7 +32,7 @@ class PPOAgent(parl.Agent):
     def value(self, obs):
         obs = paddle.to_tensor(obs, dtype='float32')
         # obs升维
-        obs = paddle.unsqueeze(obs, axis=0)
+        # obs = paddle.unsqueeze(obs, axis=0)
         value = self.alg.value(obs)
         value = value.detach().numpy()
         return value
@@ -41,11 +42,12 @@ class PPOAgent(parl.Agent):
         action_loss_epoch = 0
         entropy_loss_epoch = 0
         # 创建一个从0到batch_size-1的连续数组索引。
-        indexes = np.arange(1000)
-        for _ in range(4):
+        indexes = np.arange(1000 * NUM_ENV)
+
+        for _ in range(K_EPOCHS):
             # 打乱batch顺序
             np.random.shuffle(indexes)
-            for start in range(0, 1000, 250):
+            for start in range(0, 1000 * NUM_ENV, 250):
                 end = start + 250
                 sample_idx = indexes[start:end]
                 batch_obs, batch_action, batch_logprob, batch_adv, batch_return, batch_value = rpm.sample_batch(
@@ -65,9 +67,9 @@ class PPOAgent(parl.Agent):
                 action_loss_epoch += action_loss
                 entropy_loss_epoch += entropy_loss
 
-        value_loss_epoch /= 1000
-        action_loss_epoch /= 1000
-        entropy_loss_epoch /= 1000
+        value_loss_epoch /= 1000 * NUM_ENV * K_EPOCHS
+        action_loss_epoch /= 1000 * NUM_ENV * K_EPOCHS
+        entropy_loss_epoch /= 1000 * NUM_ENV * K_EPOCHS
 
         return value_loss_epoch, action_loss_epoch, entropy_loss_epoch
 

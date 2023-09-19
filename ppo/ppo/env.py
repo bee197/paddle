@@ -134,7 +134,7 @@ class RobotEnv(gym.Env):
 
         # 获得图片
         obs = self.__get_observation()
-        obs = paddle.to_tensor(obs, dtype='float32')
+        # obs = paddle.to_tensor(obs, dtype='float32')
 
         return obs
 
@@ -165,6 +165,13 @@ class RobotEnv(gym.Env):
         # 获得距离 TODO:
         distance, distance_ori, distance_coll, robot_pos, coll_pos, robot_ori, coll_ori = self.__get_distance(
             self.soccer)
+        # 获得y轴偏移量
+        # k值
+        # k = self.coord1[1] / self.coord1[0]
+        # if k * self.coord2[0] <= self.coord1[1]:
+        #     bias = [0, 0.5]
+        # else:
+        #     bias = [0, -0.5]
         distance2, distance_ori2, distance_coll2, robot_pos2, coll_pos2, robot_ori2, coll_ori2 = self.__get_distance(
             self.collision)
 
@@ -193,13 +200,11 @@ class RobotEnv(gym.Env):
         # # print(angle)
         angle2 = np.abs(coll_angle2 - robot_angle2)
         # 方向距离
-        distance_target_direct = distance * math.sin(angle)
-        distace_coll_direct = distance2 * math.sin(angle2)
+        distance_target_direct = distance * angle
+        distace_coll_direct = distance2 * angle2
 
         # 设置奖励:足球 TODO:
         # TODO:改进人工势场算法 Uatt = 0.5 * ξ * ||qgoal - q||^2
-        video_in = angle < self.h_fov / 2
-        video_in2 = angle2 < self.h_fov / 2
 
         # 沿着白线有奖励
         reward_line = 0
@@ -209,8 +214,6 @@ class RobotEnv(gym.Env):
         # 沿着足球有奖励
         reward_goal = 0
         target_in = angle < (h_fov / 2 + 0.24)
-        # 对角度敏感
-        gamma = 1.5
         # 先摆脱障碍物
         # 摆脱障碍物
         if distace_coll_direct > 1:
@@ -219,7 +222,7 @@ class RobotEnv(gym.Env):
                 # 距离角度靠近足球
                 if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
                     reward_goal += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
-                            1 - angle / (h_fov * gamma / 2))
+                            1 - angle / (h_fov / 2))
                 # 距离角度之一远离足球
                 else:
                     reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
@@ -236,11 +239,35 @@ class RobotEnv(gym.Env):
             # print("no")
             # 角度更靠近障碍物
             if self.distace_coll_direct_prev - distace_coll_direct > 0:
-                reward_goal += -(1 / (distance_target_direct + 1) + 2)
+                # TODO:
+                # reward_goal += -(1 / (distance_target_direct + 1) + 2)
+                reward_goal += 0
             else:
                 reward_goal += (1 / (distance_target_direct + 1) + 1)
+        # 局部目标点
+        # print("angle2", angle2)
+        target_in2 = angle2 < (h_fov / 2 + 0.1) and robot_pos[0] < coll_pos[0]
+        target_in = angle < (h_fov / 2 + 0.24)
+
+        # 障碍物在视野内
+        # if target_in2:
+        #     reward_goal -= 1
+        #     # 角度靠近障碍物
+        #     if self.angle_prev2 - angle2 > 0:
+        #         reward_goal -= (1 / (distance2 + 1)) * (1 / (angle2 / h_fov / 2 + 1)) * 2
+        #     else:
+        #         reward_goal += (1 / (distance2 + 1)) * (1 / (angle2 / h_fov / 2 + 1)) * 2
+        # else:
+        #     reward_goal += 1
+        #     # 足球在视野内
+        #     if target_in:
+        #         # print("in")
+        #         if self.angle_prev - angle > 0:
+        #             reward_goal += (1 / (distance + 1)) * (1 / (angle / h_fov / 2 + 1)) * 10
+        #         else:
+        #             reward_goal += -(1 / (distance + 1)) * (1 / (angle / h_fov / 2 + 1)) * 10
+        # print("angle", angle)
         ##
-        iscoll = False
 
         # 障碍物
         reward_coll = 0
@@ -254,7 +281,7 @@ class RobotEnv(gym.Env):
         # 奖励
         reward = reward_line + reward_goal + reward_coll
         # print(f"reward:{reward}")
-        info = False
+        iscoll = False
         # 只有距离小于2时才判断是否相撞,减少运算
         # 距离大于2,肯定没相撞 TODO:
         if distance > 2:
@@ -263,7 +290,7 @@ class RobotEnv(gym.Env):
         elif self.__is_collision(self.soccer):
             print(f"!!!足球!!!")
             reward += 6
-            info = True
+            iscoll = True
             done = True
         # 距离小于2,又没有相撞
         else:
@@ -294,10 +321,14 @@ class RobotEnv(gym.Env):
         self.robot_pos_prev = robot_pos
         self.distace_coll_direct_prev = distace_coll_direct
         self.distance_target_direct_prev = distance_target_direct
-
+        # info = {"distance_coll": distance_coll, "distance": distance, "distance_col": distance2,
+        #         "angle_diff": np.abs(angle2 - angle), "reward": reward,
+        #         "iscoll": iscoll, "target_angle": angle, "col_angle": angle2, "direct_coll": distace_coll_direct,
+        #         "direct_target": distance_target_direct}
+        info = {"iscoll": iscoll}
         # 获得图片
         obs = self.__get_observation()
-        obs = paddle.to_tensor(obs, dtype='float32')
+        # obs = paddle.to_tensor(obs, dtype='float32')
 
         # print(reward)
 

@@ -24,7 +24,7 @@ class PPO(Algorithm):
         clip = nn.ClipGradByValue(self.max_grad_norm)
         self.optimizer = paddle.optimizer.Adam(learning_rate=lr, parameters=self.policy.get_params(), epsilon=self.eps,
                                                grad_clip=clip)
-        self.lr_scheduler = LinearDecayScheduler(lr, int(1.5e6))
+        self.lr_scheduler = LinearDecayScheduler(lr, int(1000))
 
     def sample(self, obs):
         value = self.model.value(obs)
