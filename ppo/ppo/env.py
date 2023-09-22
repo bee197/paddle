@@ -213,27 +213,31 @@ class RobotEnv(gym.Env):
 
         # 沿着足球有奖励
         reward_goal = 0
+        gamma = 5
         target_in = angle < (h_fov / 2 + 0.24)
+        # print("h_fov", h_fov / 2 + 0.24)
         # 先摆脱障碍物
         # 摆脱障碍物
-        if distace_coll_direct > 1:
+        if distace_coll_direct > 1 or angle2 > (h_fov / 2 + 0.1):
             # 对足球角度大
             if angle > 0.34:
                 # 距离角度靠近足球
                 if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
                     reward_goal += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
-                            1 - angle / (h_fov / 2))
+                            1 - angle / (h_fov / 2)) * gamma
                 # 距离角度之一远离足球
                 else:
-                    reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
-                # print("reward_goal:", reward_goal)
+                    # reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
+                    # print("reward_goal:", reward_goal)
+                    reward_goal += 0
             # 对足球角度小
             else:
                 # 距离靠近足球
                 if self.distance_prev - distance > 0:
-                    reward_goal += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1)
+                    reward_goal += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1) * gamma
                 else:
-                    reward_goal += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
+                    # reward_goal += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
+                    reward_goal += 0
         # 没摆脱障碍物
         else:
             # print("no")
@@ -288,7 +292,7 @@ class RobotEnv(gym.Env):
             done = False
         # 距离小于2,且相撞
         elif self.__is_collision(self.soccer):
-            print(f"!!!足球!!!")
+            # print(f"!!!足球!!!")
             reward += 6
             iscoll = True
             done = True
@@ -298,18 +302,18 @@ class RobotEnv(gym.Env):
 
         # 与障碍物相撞
         if self.__is_collision(self.collision):
-            print(f"!")
+            # print(f"!")
             reward = -12
             done = True
 
         # 步数超过限制
         if self.step_num > STEP_MAX:
-            print("-")
+            # print("-")
             done = True
             reward = -12
         # 视野丢失
         if not target_in:
-            print(".")
+            # print(".")
             done = True
             reward = -12
 

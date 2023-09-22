@@ -3,7 +3,7 @@ import paddle
 import numpy as np
 from parl.utils.scheduler import LinearDecayScheduler
 NUM_ENV = 6
-K_EPOCHS = 4
+K_EPOCHS = 10
 
 class PPOAgent(parl.Agent):
     def __init__(self, algorithm, model):

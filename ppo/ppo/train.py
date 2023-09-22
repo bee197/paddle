@@ -1,7 +1,9 @@
 import os
+import sys
 from multiprocessing import freeze_support
 
 import paddle
+from matplotlib import pyplot as plt
 from parl.utils import summary
 import numpy as np
 from algorithm import PPO
@@ -15,11 +17,11 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 # 玩多少次
 TRAIN_EPISODE = 12000
 # 学习率
-LR = 0.0005
+LR = 5e-3
 # adm更新参数
 BETAS = (0.9, 0.99)
 # 折扣因子
-GAMMA = 0.94
+GAMMA = 0.9
 # 学习的次数
 K_EPOCHS = 4
 # ppo截断
@@ -40,10 +42,9 @@ def make_env(seed):
 
 def run_episode(agent, env, rpm):
     obs = env.reset()
-    reward_list = np.zeros(NUM_ENV, dtype='float32')
     episode = 1
-    is_coll = 0
     timestep = 1
+    is_coll = 0
     # done = np.zeros(step_nums, dtype='float32')
     while episode < TRAIN_EPISODE:
         is_epi = False
@@ -51,12 +52,9 @@ def run_episode(agent, env, rpm):
         obs = paddle.to_tensor(obs, dtype='float32')
         value, action, logprob, _ = agent.sample(obs, rpm)
         next_obs, reward, done, info = env.step(action)
-        reward_list = np.append(reward_list, reward)
-        reward_norm = (reward - reward_list.mean()) / reward_list.std()
-        # print("reward_norm", reward_norm)
         obs = next_obs
         action = action.reshape((NUM_ENV, 1))
-        rpm.append(obs, action, logprob, reward_norm, done, value.flatten())
+        rpm.append(obs, action, logprob, reward, done, value.flatten())
         # 每6000step学习一次
         if timestep % UPDATE_TIMESTEP == 0:
             value = agent.value(obs)
@@ -72,7 +70,6 @@ def run_episode(agent, env, rpm):
         # print("indices", indices)
         if len(indices) > 0:
             obs[indices] = env.env_method("reset", indices=indices)
-            reward_list[indices] = 0
             episode += indices.shape[0]
             is_epi = True
         # 每50个episode绘制一次图像
@@ -83,13 +80,11 @@ def run_episode(agent, env, rpm):
             summary.add_scalar("coll_num", is_coll, global_step=episode)
 
             # 保存模型
-            agent.save('../ppo/train_log/model.ckpt')
             save_path = '../ppo/train_log/model' + str(episode) + '.ckpt'
             if is_coll >= 10:
                 agent.save(save_path)
             is_coll = 0
         timestep += 1
-        # print("timestep", timestep)
     return
 
 

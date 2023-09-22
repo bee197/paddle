@@ -81,6 +81,8 @@ class PPO(Algorithm):
 
         action_loss = -paddle.minimum(surr1, surr2).mean()
 
+        print("action_loss", action_loss)
+
         values = values.reshape([-1])
 
         value_pred_clipped = batch_value + paddle.clip(

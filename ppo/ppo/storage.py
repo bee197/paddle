@@ -41,10 +41,10 @@ class ReplayMemory:
             else:
                 nextnonterminal = 1.0 - self.dones[t + 1]
                 nextvalues = self.values[t + 1]
-            delta = self.rewards[
-                        t] + gamma * nextvalues * nextnonterminal - self.values[t]
-            advantages[
-                t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
+            delta = self.rewards[t] + gamma * nextvalues * nextnonterminal - self.values[t]
+            advantages[t] = lastgaelam = delta + gamma * gae_lambda * nextnonterminal * lastgaelam
+            # print("advantages[t]", advantages[t])
+            # print("lastgaelam", lastgaelam)
         returns = advantages + self.values
         self.returns = returns
         self.advantages = advantages
