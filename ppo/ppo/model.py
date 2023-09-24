@@ -31,16 +31,16 @@ class Model(parl.Model):
         # obs = obs.reshape((UPDATE_TIMESTEP, 3, 84, 84))
         # print("obs", obs)
         x = self.conv1(obs)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
         x = self.conv2(x)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
         x = self.conv3(x)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
 
         x = self.flatten(x)
 
         x = self.fc1(x)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
         value = self.fc3(x)
 
         # action_probs = self.policy(obs)
@@ -54,16 +54,16 @@ class Model(parl.Model):
     def policy(self, obs):
         # print("obs", obs)
         x = self.conv1(obs)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
         x = self.conv2(x)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
         x = self.conv3(x)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
 
         x = self.flatten(x)
 
         x = self.fc1(x)
-        x = F.leaky_relu(x)
+        x = F.relu(x)
         logits = self.fc2(x)
 
         # TODO:

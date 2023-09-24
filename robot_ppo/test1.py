@@ -13,9 +13,9 @@ print(f"Using seed = {seed} for testing.")
 
 env = RobotEnv(True)
 
-num = 1110000
+num = 1080000
 MODEL_PATH = 'trained_models_CNN4/ppo_robot_' + str(num) + '_steps'
-while num <= 1170000:
+while num <= 1680000:
     total_reward = 0
     total_score = 0
     min_score = 1e9
@@ -23,6 +23,7 @@ while num <= 1170000:
     collnum = 0
     # Load the trained model
     model = MaskablePPO.load(MODEL_PATH)
+
     for episode in range(NUM_EPISODE):
         obs = env.reset()
         episode_reward = []

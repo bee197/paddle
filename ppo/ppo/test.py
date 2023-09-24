@@ -51,7 +51,7 @@ ppo = PPO(model, LR, BETAS, GAMMA, K_EPOCHS, EPS_CLIP)
 agent = PPOAgent(ppo, model)
 rpm = ReplayMemory()
 # 导入策略网络参数
-PATH = 'train_log/model8250.ckpt'
+PATH = 'train_log/model.ckpt'
 
 episode = 0
 it = 1500

@@ -53,7 +53,7 @@ def run_episode(agent, env, rpm):
         value, action, logprob, _ = agent.sample(obs, rpm)
         next_obs, reward, done, info = env.step(action)
         obs = next_obs
-        action = action.reshape((NUM_ENV, 1))
+        action = action.reshape(  (NUM_ENV, 1))
         rpm.append(obs, action, logprob, reward, done, value.flatten())
         # 每6000step学习一次
         if timestep % UPDATE_TIMESTEP == 0:

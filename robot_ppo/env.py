@@ -5,7 +5,7 @@ import cv2
 import gym
 import numpy as np
 import pybullet_data
-from gym import spaces
+from gymnasium import spaces
 import pybullet as p
 
 STACK_SIZE = 3
