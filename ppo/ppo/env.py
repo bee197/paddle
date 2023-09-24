@@ -213,64 +213,66 @@ class RobotEnv(gym.Env):
 
         # 沿着足球有奖励
         reward_goal = 0
-        gamma = 1
+        gamma = 5
         target_in = angle < (h_fov / 2 + 0.24)
         # print("h_fov", h_fov / 2 + 0.24)
         # 先摆脱障碍物
         # 摆脱障碍物
-        if distace_coll_direct > 1:
-            # 对足球角度大
-            if angle > 0.34:
-                # 距离角度靠近足球
-                if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
-                    reward_goal += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
-                            1 - angle / (h_fov / 2)) * gamma
-                # 距离角度之一远离足球
-                else:
-                    reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
-                    # print("reward_goal:", reward_goal)
-                    # reward_goal += 0
-            # 对足球角度小
-            else:
-                # 距离靠近足球
-                if self.distance_prev - distance > 0:
-                    reward_goal += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1) * gamma
-                else:
-                    reward_goal += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
-                    # reward_goal += 0
-        # 没摆脱障碍物
-        else:
-            # print("no")
-            # 角度更靠近障碍物
-            if self.distace_coll_direct_prev - distace_coll_direct > 0:
-                # TODO:
-                reward_goal += -(1 / (distance_target_direct + 1) + 2)
-                # reward_goal += 0
-            else:
-                reward_goal += (1 / (distance_target_direct + 1) + 1)
+        # if distace_coll_direct > 1 or angle2 > (h_fov / 2 + 0.1):
+        #     # 对足球角度大
+        #     if angle > 0.34:
+        #         # 距离角度靠近足球
+        #         if self.distance_prev - distance > 0 and self.angle_prev - angle > 0:
+        #             reward_goal += (1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (
+        #                     1 - angle / (h_fov / 2)) * gamma
+        #         # 距离角度之一远离足球
+        #         else:
+        #             # reward_goal += -(1 / (distance_target_direct / 2 + 1) + 1) * (1 / (distance + 1) + 1) * (1 + angle)
+        #             # print("reward_goal:", reward_goal)
+        #             reward_goal += 0
+        #     # 对足球角度小
+        #     else:
+        #         # 距离靠近足球
+        #         if self.distance_prev - distance > 0:
+        #             reward_goal += (1 / (distance_target_direct / 2 + 1)) * (1 / (distance + 1) + 1) * gamma
+        #         else:
+        #             # reward_goal += -(1 / (distance_target_direct / 2 + 1) + 2) * (1 / (distance + 1) + 1)
+        #             reward_goal += 0
+        # # 没摆脱障碍物
+        # else:
+        #     # print("no")
+        #     # 角度更靠近障碍物
+        #     if self.distace_coll_direct_prev - distace_coll_direct > 0:
+        #         # TODO:
+        #         # reward_goal += -(1 / (distance_target_direct + 1) + 2)
+        #         reward_goal += 0
+        #     else:
+        #         reward_goal += (1 / (distance_target_direct + 1) + 1)
         # 局部目标点
         # print("angle2", angle2)
+        target_in = angle < (h_fov / 2 + 0.1)
         target_in2 = angle2 < (h_fov / 2 + 0.1) and robot_pos[0] < coll_pos[0]
-        target_in = angle < (h_fov / 2 + 0.24)
 
         # 障碍物在视野内
-        # if target_in2:
-        #     reward_goal -= 1
-        #     # 角度靠近障碍物
-        #     if self.angle_prev2 - angle2 > 0:
-        #         reward_goal -= (1 / (distance2 + 1)) * (1 / (angle2 / h_fov / 2 + 1)) * 2
-        #     else:
-        #         reward_goal += (1 / (distance2 + 1)) * (1 / (angle2 / h_fov / 2 + 1)) * 2
-        # else:
-        #     reward_goal += 1
-        #     # 足球在视野内
-        #     if target_in:
-        #         # print("in")
-        #         if self.angle_prev - angle > 0:
-        #             reward_goal += (1 / (distance + 1)) * (1 / (angle / h_fov / 2 + 1)) * 10
-        #         else:
-        #             reward_goal += -(1 / (distance + 1)) * (1 / (angle / h_fov / 2 + 1)) * 10
-        # print("angle", angle)
+        if target_in2:
+            if self.angle_prev2 - angle2 > 0:
+                # 角度靠近障碍物
+                reward_goal -= (1 / (distance2 + 1)) * (1 - angle2 / (h_fov / 2 + 0.1))
+            else:
+                # 角度远离障碍物
+                reward_goal += angle2 / (h_fov / 2 + 0.1)
+        # 障碍物不在视野内
+        else:
+            reward_goal += 0.5 + distance2 / (distance2 + 1)
+            # 足球在视野内
+            if target_in:
+                # 角度靠近足球
+                if self.angle_prev - angle > 0:
+                    reward_goal += 1 + angle / (h_fov / 2 + 0.1)
+                # 角度远离足球
+                else:
+                    reward_goal -= 1 / distance
+        # print("reward_goal", reward_goal)
         ##
 
         # 障碍物
